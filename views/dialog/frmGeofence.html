@@ -1,0 +1,38 @@
+<div id="divGeofence" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" title="">
+    <form id="frmGeofence" class="form-horizontal">
+        <div class="modal-body form-horizontal">
+            <div class="control-group">
+                <!-- Text input-->
+                <label class="control-label" for="name" data-i18n="geofence.name"><%= t('geofence.name') %></label>
+                <div class="controls">
+                    <input type="text" placeholder="<%= t('vehicle.name') %>" class="input" id="name" name="name" data-i18n="[placeholder]geofence.name">
+                </div>
+            </div>
+            <div class="control-group">
+                <!-- Text input-->
+                <label class="control-label" for="type" data-i18n="geofence.type"><%= t('geofence.type') %></label>
+
+                <div class="controls">
+                    <input type="text" placeholder="<%= t('geofence.set_area') %>" class="input" id="type" name="type" readonly data-i18n="[placeholder]geofence.set_area"><br>
+                    <span id="typeInfo"></span>
+                </div>
+            </div>
+            <div class="control-group">
+                <!-- Search input-->
+                <label class="control-label" for="remark" data-i18n="geofence.remark"><%= t('geofence.remark') %></label>
+
+                <div class="controls">
+                    <input type="text" placeholder="<%= t('geofence.remark') %>" class="input" id="remark" name="remark"data-i18n="[placeholder]geofence.remark">
+                </div>
+            </div>
+            <div class="control-group" id="pnlDate" style="display:none">
+                <!-- Text input-->
+                <label class="control-label" for="createdAt" data-i18n="geofence.create_date"><%= t('geofence.create_date') %></label>
+
+                <div class="controls">
+                    <input type="text" placeholder="" class="input" id="createdAt" name="createdAt">
+                </div>
+            </div>
+        </div>
+    </form>
+</div>

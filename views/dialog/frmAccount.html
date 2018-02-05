@@ -1,0 +1,32 @@
+<div id="divAccount" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" title="<%= t('account.modify_password') %>" data-i18n="[title]account.modify_password">
+    <form id="frmAccount" class="form-horizontal">
+        <div class="modal-body form-horizontal">
+            <div class="control-group">
+                <!-- Text input-->
+                <label class="control-label" for="account_old_password" data-i18n="account.old_password"><%= t('account.old_password') %></label>
+
+                <div class="controls">
+                    <input id="account_old_password" name="account_old_password" type="password" placeholder="<%= t('account.modify_password') %>"
+                           class="input-xlarge" data-i18n="[placeholder]account.modify_password">
+                </div>
+            </div>
+            <div class="control-group" id="password_bar">
+                <!-- Text input-->
+                <label class="control-label" for="account_password" data-i18n="account.new_password"><%= t('account.new_password') %></label>
+
+                <div class="controls">
+                    <input id="account_password" name="account_password" type="password" placeholder="<%= t('account.modify_password') %>"
+                           class="input-xlarge" data-i18n="[placeholder]account.modify_password">
+                </div>
+            </div>
+            <div class="control-group" id="password_bar2">
+                <!-- Text input-->
+                <label class="control-label" for="account_password2" data-i18n="account.password_again"><%= t('account.password_again') %></label>
+
+                <div class="controls">
+                    <input id="account_password2" name="account_password2" type="password" placeholder="<%= t('account.password_again') %>" class="input-xlarge" data-i18n="[placeholder]account.password_again">
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
