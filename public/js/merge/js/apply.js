@@ -1,686 +1,647 @@
 $(document).ready(function () {
 
+    var all_depart;
+    var form_option = {};
+    var _user = JSON.parse(sessionStorage.getItem('user'));
+    var is_kq = null; //是否跨区
+    var _val = $('input[name="order"]:checked').val();
+    var apend_data = []; //显示的审核人
+    var vehicle_people = [];
+    var juboss = [];
+    var vehicleId = null; //车辆id
+    var car_data = [];
+    var syrid = null; //使用人id
+    var syruid = null;
+    var use_reason = ['执法办案', '社会面管理', '重大勤务', '督察检查', '指挥通信', '现场勘查', '押解', '勤务保障', '其他执法执勤']
 
+    form_option.night = _val;
+    console.log(_user, 'user')
+    var role = {
+        9: '民警',
+        12: '科所队领导',
+        13: '局领导'
+    }
+    // var apply_estatus = {
+    //     '0': '已结束',
+    //     '2': '科所队领导审批',
+    //     '4': '警务保障室领导审批',
+    //     '6': '局领导审批',
+    //     '8': '已通过',
+    //     'A': '已还车'
+    // }
+    if (_user.user) {
+        form_option.uid = _user.user.objectId;
+        form_option.role = role[_user.employee.role];
+        form_option.depart = _user.depart.objectId
+        $('#user').val(_user.employee.name)
 
-
-    function beta2() {
-        var all_depart;
-        var form_option = {};
-        var _user = JSON.parse(sessionStorage.getItem('user'));
-        var is_kq = null; //是否跨区
-        var _val = $('input[name="order"]:checked').val();
-        var apend_data = []; //显示的审核人
-        var vehicle_people = [];
-        var juboss = [];
-        var vehicleId = null; //车辆id
-        var car_data = [];
-        var syrid = null; //使用人id
-        var syruid = null;
-        var use_reason = ['执法办案', '社会面管理', '重大勤务', '督察检查', '指挥通信', '现场勘查', '押解', '勤务保障', '其他执法执勤']
-
-        form_option.night = _val;
-        console.log(_user, 'user')
-        var role = {
-            9: '民警',
-            12: '科所队领导',
-            13: '局领导'
-        }
-        // var apply_estatus = {
-        //     '0': '已结束',
-        //     '2': '科所队领导审批',
-        //     '4': '警务保障室领导审批',
-        //     '6': '局领导审批',
-        //     '8': '已通过',
-        //     'A': '已还车'
-        // }
-        if (_user.user) {
-            form_option.uid = _user.user.objectId;
-            form_option.role = role[_user.employee.role];
-            form_option.depart = _user.depart.objectId
-            $('#user').val(_user.employee.name)
-
-            if (_user.employee.role == '13') {
-                $('#borrow').parent().hide();
-                $('#night').hide();
-                $('#auditer').hide();
-                $('#reason').parent().hide();
-                $('#address1').hide();
-                $('#usershow').hide();
-                $('#peershow').hide();
-                $('#address').parent().hide();
-                $('#address2').parent().show()
-            } else {
-                $('#borrow').parent().show();
-                $('#night').show();
-            }
-
-            if (_user.employee.isDriver) {
-                $('#jldselectshow').show();
-                $('#user').val('');
-                $('#driver').val(_user.employee.name)
-                departBoss()
-            } else {
-                if (_user.employee.role != 13) {
-                    getAudit()
-                }
-            }
-
-            wistorm_api._list('department', { objectId: '>0', uid: _user.employee.companyId }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (dep) {
-                all_depart(dep.data)
-            })
-            // vehicle_lister()
-            GetVehicleCaptain(_user);
+        if (_user.employee.role == '13') {
+            $('#borrow').parent().hide();
+            $('#night').hide();
+            $('#auditer').hide();
+            $('#reason').parent().hide();
+            $('#address1').hide();
+            $('#usershow').hide();
+            $('#peershow').hide();
+            $('#address').parent().hide();
+            $('#address2').parent().show()
+        } else {
+            $('#borrow').parent().show();
+            $('#night').show();
         }
 
-        $('#user').on('change', function () {
-            console.log(this.value.trim())
-            wistorm_api._list('employee', { name: this.value.trim() }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                if (!emp.total) {
-                    weui.alert('该申请人不存在')
-                } else {
-                    wistorm_api.getUserList({ objectId: emp.data[0].uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-                        syrid = json.data[0].username;
-                        syruid = json.data[0].objectId;
-                    })
-                }
+        if (_user.employee.isDriver) {
+            $('#jldselectshow').show();
+            $('#user').val('');
+            $('#driver').val(_user.employee.name)
+            departBoss()
+        } else {
+            if (_user.employee.role != 13) {
+                getAudit()
+            }
+        }
 
-            })
+        wistorm_api._list('department', { objectId: '>0', uid: _user.employee.companyId }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (dep) {
+            all_depart(dep.data)
         })
+        // vehicle_lister()
+        GetVehicleCaptain(_user);
+    }
 
-        function GetVehicleCaptain(user) {
-            wistorm_api._list('department', { name: '车队', uid: user.employee.companyId }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (dep) {
-                console.log(dep, 'dep')
-                wistorm_api._list('employee', { departId: dep.data[0].objectId, role: '12|13' }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                    console.log(emp, 'emmp')
-                    var i = 0;
-                    emp.data.forEach(ele => {
-                        wistorm_api._list('role', { objectId: ele.roleId }, '', '-createdAt', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), false, function (roles) {
-                            ele.rolename = roles.data ? roles.data[0].name : '';
-                            wistorm_api.getUserList({ objectId: ele.uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-                                ele.user = json.data[0];
-                                i++;
-                                if (i == emp.data.length) {
-                                    vehicle_people = emp.data;
-                                    console.log(vehicle_people, 'vehiclecaptaion')
-                                }
-                            })
+    $('#user').on('change', function () {
+        console.log(this.value.trim())
+        wistorm_api._list('employee', { name: this.value.trim() }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
+            if (!emp.total) {
+                weui.alert('该申请人不存在')
+            } else {
+                wistorm_api.getUserList({ objectId: emp.data[0].uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
+                    syrid = json.data[0].username;
+                    syruid = json.data[0].objectId;
+                })
+            }
+
+        })
+    })
+
+    function GetVehicleCaptain(user) {
+        wistorm_api._list('department', { name: '车队', uid: user.employee.companyId }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (dep) {
+            console.log(dep, 'dep')
+            wistorm_api._list('employee', { departId: dep.data[0].objectId, role: '12|13' }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
+                console.log(emp, 'emmp')
+                var i = 0;
+                emp.data.forEach(ele => {
+                    wistorm_api._list('role', { objectId: ele.roleId }, '', '-createdAt', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), false, function (roles) {
+                        ele.rolename = roles.data ? roles.data[0].name : '';
+                        wistorm_api.getUserList({ objectId: ele.uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
+                            ele.user = json.data[0];
+                            i++;
+                            if (i == emp.data.length) {
+                                vehicle_people = emp.data;
+                                console.log(vehicle_people, 'vehiclecaptaion')
+                            }
                         })
                     })
                 })
             })
-        }
-        // function vehicle_lister() {
-        //     wistorm_api._list('employee', { departId: 58, role: 12 }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-        //         var i = 0;
-        //         emp.data.forEach(ele => {
-        //             wistorm_api.getUserList({ objectId: emp.data[0].uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-        //                 ele.userid = json.data[0].username;
-        //                 i++;
-        //                 if (i == emp.total) {
-        //                     console.log(emp.data)
-        //                     vehicle_people = emp.data
-        //                 }
-        //             })
-        //         })
-        //     })
-        // }
+        })
+    }
+    // function vehicle_lister() {
+    //     wistorm_api._list('employee', { departId: 58, role: 12 }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
+    //         var i = 0;
+    //         emp.data.forEach(ele => {
+    //             wistorm_api.getUserList({ objectId: emp.data[0].uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
+    //                 ele.userid = json.data[0].username;
+    //                 i++;
+    //                 if (i == emp.total) {
+    //                     console.log(emp.data)
+    //                     vehicle_people = emp.data
+    //                 }
+    //             })
+    //         })
+    //     })
+    // }
 
-        function departBoss() {
-            wistorm_api._list('employee', { departId: 1 }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                var i = 0;
-                var j_arr = [];
-                emp.data.forEach(ele => {
-                    wistorm_api.getUserList({ objectId: ele.uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-                        // sqrid = json.data[0].username;
-                        ele.userid = json.data[0].username;
-                        var op_json = { label: ele.name, value: json.data[0].username };
-                        j_arr.push(op_json)
-                        i++;
-                        if (emp.data.length == i) {
-                            selectBoss(j_arr, emp.data)
-                        }
-                    })
+    function departBoss() {
+        wistorm_api._list('employee', { departId: 1 }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
+            var i = 0;
+            var j_arr = [];
+            emp.data.forEach(ele => {
+                wistorm_api.getUserList({ objectId: ele.uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
+                    // sqrid = json.data[0].username;
+                    ele.userid = json.data[0].username;
+                    var op_json = { label: ele.name, value: json.data[0].username };
+                    j_arr.push(op_json)
+                    i++;
+                    if (emp.data.length == i) {
+                        selectBoss(j_arr, emp.data)
+                    }
                 })
             })
-        }
-        function selectBoss(data, all) {
-            $('#jldselectshow').on('click', function () {
-                weui.picker(data, {
-                    onConfirm: function (result) {
-                        // console.log(result,'boss')
-                        $('#jldselectshow .weui-cell__ft').text(result[0].label)
-                        $('#jldselectshow .weui-cell__ft').css({ color: '#000' })
-                        syrid = result[0].value;
-                        form_option.name = result[0].label;
-                        var _sqruid = all.filter(ele => ele.userid == syrid);
-                        syruid = _sqruid[0].uid
-                    },
-                    id: 'jldselectshow'
-                });
+        })
+    }
+    function selectBoss(data, all) {
+        $('#jldselectshow').on('click', function () {
+            weui.picker(data, {
+                onConfirm: function (result) {
+                    // console.log(result,'boss')
+                    $('#jldselectshow .weui-cell__ft').text(result[0].label)
+                    $('#jldselectshow .weui-cell__ft').css({ color: '#000' })
+                    syrid = result[0].value;
+                    form_option.name = result[0].label;
+                    var _sqruid = all.filter(ele => ele.userid == syrid);
+                    syruid = _sqruid[0].uid
+                },
+                id: 'jldselectshow'
             });
-        }
-
-        //用车单位
-        $('#borrow').on('click', function () {
-            weui.picker([
-                {
-                    label: '本单位车辆',
-                    value: '1'
-                }, {
-                    label: '向其他单位借车',
-                    value: '2'
-                }, {
-                    label: '向车队申请派车',
-                    value: '3'
-                }
-            ], {
-                    defaultValue: ['1'],
-                    onConfirm: function (result) {
-                        // console.log(result);
-                        // form_option.borrow = result[0];
-                        vehicleId = null;
-
-                        var _v = result[0].value;
-                        // form_option.driver = _v;
-                        form_option.use_type = _v;
-                        _user.employee.isDriver ? '' : $("#driver").val("")
-                        delete_depart();
-                        delete_car();
-                        if (_v == 3) {
-                            $('#car_driver').hide();
-                            $('#borrow_depart1').hide();
-                        } else {
-                            _v == 1 ? $('#car_driver').show() : $('#car_driver').hide();
-                            _v == 2 ? $('#borrow_depart1').show() : $('#borrow_depart1').hide();
-                            _v == 1 ? get_carData(_user.depart.objectId) : null;
-
-                        }
-                        $('#borrow .weui-cell__ft').text(result[0].label);
-                        $('#borrow .weui-cell__ft').css({ color: '#000' });
-                        _v == 2 ? other_depart() : null;
-                    },
-                    id: 'borrow'
-                });
         });
+    }
+
+    //用车单位
+    $('#borrow').on('click', function () {
+        weui.picker([
+            {
+                label: '本单位车辆',
+                value: '1'
+            }, {
+                label: '向其他单位借车',
+                value: '2'
+            }, {
+                label: '向车队申请派车',
+                value: '3'
+            }
+        ], {
+                defaultValue: ['1'],
+                onConfirm: function (result) {
+                    // console.log(result);
+                    // form_option.borrow = result[0];
+                    vehicleId = null;
+
+                    var _v = result[0].value;
+                    // form_option.driver = _v;
+                    form_option.use_type = _v;
+                    _user.employee.isDriver ? '' : $("#driver").val("")
+                    delete_depart();
+                    delete_car();
+                    if (_v == 3) {
+                        $('#car_driver').hide();
+                        $('#borrow_depart1').hide();
+                    } else {
+                        _v == 1 ? $('#car_driver').show() : $('#car_driver').hide();
+                        _v == 2 ? $('#borrow_depart1').show() : $('#borrow_depart1').hide();
+                        _v == 1 ? get_carData(_user.depart.objectId) : null;
+
+                    }
+                    $('#borrow .weui-cell__ft').text(result[0].label);
+                    $('#borrow .weui-cell__ft').css({ color: '#000' });
+                    _v == 2 ? other_depart() : null;
+                },
+                id: 'borrow'
+            });
+    });
 
 
 
-        function get_carData(depart) {
-            wistorm_api._list('vehicle', { departId: depart }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (veh) {
-                var i = 0;
-                if (veh.data.length) {
-                    veh.data.forEach(ele => {
-                        if (ele.status == 1) { //出车
-                            W.$ajax('mysql_api/list', {
-                                table: 'ga_apply',
-                                json_p: { car_num: ele.name, etm: 0 },
-                                sorts: '-id'
-                            }, function (res) {
-                                ele.apply = res.data[0];
-                                if (res.data[0]) {
-                                    wistorm_api._list('employee', { name: res.data[0].name }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                                        i++;
-                                        ele.driverMessage = emp.data[0];
-                                        if (i == veh.data.length) {
-                                            get_car(veh.data)
-                                        }
-                                    })
-                                } else {
+    function get_carData(depart) {
+        wistorm_api._list('vehicle', { departId: depart }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (veh) {
+            var i = 0;
+            if (veh.data.length) {
+                veh.data.forEach(ele => {
+                    if (ele.status == 1) { //出车
+                        W.$ajax('mysql_api/list', {
+                            table: 'ga_apply',
+                            json_p: { car_num: ele.name, etm: 0 },
+                            sorts: '-id'
+                        }, function (res) {
+                            ele.apply = res.data[0];
+                            if (res.data[0]) {
+                                wistorm_api._list('employee', { name: res.data[0].name }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
                                     i++;
-                                    // ele.driverMessage = emp.data[0];
+                                    ele.driverMessage = emp.data[0];
                                     if (i == veh.data.length) {
                                         get_car(veh.data)
                                     }
+                                })
+                            } else {
+                                i++;
+                                // ele.driverMessage = emp.data[0];
+                                if (i == veh.data.length) {
+                                    get_car(veh.data)
                                 }
-
-
-                            })
-                        } else {
-                            i++;
-                            if (i == veh.data.length) {
-                                get_car(veh.data)
                             }
-                        }
-                    })
-                } else {
-                    get_car(veh.data)
-                }
-            })
-            function get_car(res) {
-                console.log(res, 'car')
-                car_data = [];
-                var user_car = [];
-                res.forEach((ele, index) => {
-                    var op = {};
-                    if (ele.status == 1) {
-                        ele.apply && ele.driverMessage ? op.label = ele.name + '(' + ele.apply.name + ele.driverMessage.tel + ')' : ele.apply ? op.label = ele.name + '(' + ele.apply.name + ')' : op.label = ele.name;
-                    } else {
-                        op.label = ele.name
-                    }
-                    op.value = ele.objectId;
-                    car_data.push(op);
-                    ele.status == 0 ? user_car.push(ele) : null
-                })
-            }
-        }
 
-        //借车单位
-        function other_depart() {
-            $('#borrow_depart').on('click', function () {
-                var depart_data = [];
-                var _index = null;
-                all_depart.forEach((ele, index) => {
-                    var op = {};
-                    if (ele.objectId != 1 && ele.objectId != _user.depart.objectId && ele.name != '车队' && ele.name != '修理厂') {
-                        op.label = ele.name;
-                        op.value = ele.objectId;
-                        depart_data.push(op)
-                    }
-                })
-                _index = depart_data[0].value
-                weui.picker(depart_data, {
-                    defaultValue: [_index],
-                    onConfirm: function (result) {
-                        // form_option.depart = result[0].value;
-                        delete_car();
-                        get_carData(result[0].value);
-                        $('#car_driver').show()
-                        $('#borrow_depart .weui-cell__ft').text(result[0].label);
-                        $('#borrow_depart .weui-cell__ft').css({ color: '#000' });
-                        console.log(result, form_option)
-                    },
-                    id: 'borrow_depart'
-                });
-            });
-        }
 
-        function delete_car() {
-            delete form_option.car_num;
-            $('#select_car .weui-cell__ft').text('请选择');
-            $('#select_car .weui-cell__ft').css({ color: '#ccc' });
-        }
-
-        function delete_depart() {
-            // delete form_option.car_num
-            $('#borrow_depart .weui-cell__ft').text('请选择');
-            $('#borrow_depart .weui-cell__ft').css({ color: '#ccc' });
-        }
-
-        $('#select_car').on('click', function () {
-            car_data.length ?
-                weui.picker(car_data, {
-                    onChange: function (result) {
-                        console.log(result);
-                    },
-                    onConfirm: function (result) {
-                        // console.log(result);
-                        if (result[0].label.indexOf('(') > -1) {
-                            weui.alert('车辆正在使用中')
-                        } else {
-                            form_option.car_num = result[0].label;
-                            vehicleId = result[0].value;
-                            $('#select_car .weui-cell__ft').text(result[0].label);
-                            $('#select_car .weui-cell__ft').css({ color: '#000' });
-                        }
-
-                    },
-                    id: 'select_car'
-                })
-                :
-                weui.alert('没有车辆选择')
-                ;
-        });
-
-        //地址
-        W.$ajax('/address', {}, address)
-        function address(res) {
-            console.log(res, 'address')
-            var addr_data = [];
-            var provi = [];
-            var city = [];
-            var addr = [];
-
-            res.forEach((ele, index) => {
-                var op = {}
-                if (ele.level == 1) {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    provi.push(op);
-                    addr_data.push(op);
-                } else if (ele.level == 2) {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    op.p = ele.parentId
-                    city.push(op);
-                } else {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    op.p = ele.parentId;
-                    addr.push(op);
-                }
-            })
-
-            city.forEach((ele, index) => {
-                ele.children = [];
-                addr.forEach((e, i) => {
-                    if (ele.value == e.p) {
-                        delete e.p;
-                        ele.children.push(e);
-                    }
-
-                })
-            })
-            provi.forEach((ele, index) => {
-                ele.children = [];
-                city.forEach((e, i) => {
-                    if (ele.value == e.p) {
-                        delete e.p;
-                        ele.children.push(e);
-                    }
-                })
-            })
-            console.log(provi, city, addr)
-            // console.log(addr_data,'addr')
-            $('#address').on('click', function () {
-                weui.picker(provi, {
-                    depth: 3,
-                    defaultValue: [11, 177, 2164],
-                    onChange: function onChange(result) {
-                        console.log(result);
-                    },
-                    onConfirm: function onConfirm(result) {
-                        result[1].label == '温州市' ? is_kq = false : is_kq = true;
-                        var text = result.reduce(function (pre, current) {
-                            return pre.label ? pre.label + current.label : pre + current.label
                         })
-                        form_option.province = text;
-                        // console.log(text)
-                        $('#address .weui-cell__ft').text(text);
-                        $('#address .weui-cell__ft').css({ color: '#000' });
-                        console.log(is_kq, '跨区')
-                    },
-                    id: 'address'
-                });
-            });
-
-        }
-
-
-
-        function all_depart(res) {
-            console.log(res, 'depart')
-            all_depart = res;
-            var depart_data = [];
+                    } else {
+                        i++;
+                        if (i == veh.data.length) {
+                            get_car(veh.data)
+                        }
+                    }
+                })
+            } else {
+                get_car(veh.data)
+            }
+        })
+        function get_car(res) {
+            console.log(res, 'car')
+            car_data = [];
+            var user_car = [];
             res.forEach((ele, index) => {
                 var op = {};
-                op.label = ele.name;
+                if (ele.status == 1) {
+                    ele.apply && ele.driverMessage ? op.label = ele.name + '(' + ele.apply.name + ele.driverMessage.tel + ')' : ele.apply ? op.label = ele.name + '(' + ele.apply.name + ')' : op.label = ele.name;
+                } else {
+                    op.label = ele.name
+                }
                 op.value = ele.objectId;
-                depart_data.push(op);
+                car_data.push(op);
+                ele.status == 0 ? user_car.push(ele) : null
+            })
+        }
+    }
+
+    //借车单位
+    function other_depart() {
+        $('#borrow_depart').on('click', function () {
+            var depart_data = [];
+            var _index = null;
+            all_depart.forEach((ele, index) => {
+                var op = {};
+                if (ele.objectId != 1 && ele.objectId != _user.depart.objectId && ele.name != '车队' && ele.name != '修理厂') {
+                    op.label = ele.name;
+                    op.value = ele.objectId;
+                    depart_data.push(op)
+                }
+            })
+            _index = depart_data[0].value
+            weui.picker(depart_data, {
+                defaultValue: [_index],
+                onConfirm: function (result) {
+                    // form_option.depart = result[0].value;
+                    delete_car();
+                    get_carData(result[0].value);
+                    $('#car_driver').show()
+                    $('#borrow_depart .weui-cell__ft').text(result[0].label);
+                    $('#borrow_depart .weui-cell__ft').css({ color: '#000' });
+                    console.log(result, form_option)
+                },
+                id: 'borrow_depart'
             });
-        }
+        });
+    }
 
+    function delete_car() {
+        delete form_option.car_num;
+        $('#select_car .weui-cell__ft').text('请选择');
+        $('#select_car .weui-cell__ft').css({ color: '#ccc' });
+    }
 
-        var op_arr = [];
-        for (var i = 0; i < use_reason.length; i++) {
-            var op_i = {};
-            op_i.label = use_reason[i];
-            op_i.value = i + 1;
-            op_arr.push(op_i);
-        }
-        console.log(op_arr)
-        $('#reason').on('click', function () {
-            weui.picker(op_arr, {
-                defaultValue: ['1'],
+    function delete_depart() {
+        // delete form_option.car_num
+        $('#borrow_depart .weui-cell__ft').text('请选择');
+        $('#borrow_depart .weui-cell__ft').css({ color: '#ccc' });
+    }
+
+    $('#select_car').on('click', function () {
+        car_data.length ?
+            weui.picker(car_data, {
                 onChange: function (result) {
                     console.log(result);
                 },
                 onConfirm: function (result) {
                     // console.log(result);
-                    form_option.days = result[0].label;
-                    var text = result[0].label;
-                    $('#reason .weui-cell__ft').text(text);
-                    $('#reason .weui-cell__ft').css({ color: '#000' })
+                    if (result[0].label.indexOf('(') > -1) {
+                        weui.alert('车辆正在使用中')
+                    } else {
+                        form_option.car_num = result[0].label;
+                        vehicleId = result[0].value;
+                        $('#select_car .weui-cell__ft').text(result[0].label);
+                        $('#select_car .weui-cell__ft').css({ color: '#000' });
+                    }
+
                 },
-                id: 'reason'
+                id: 'select_car'
+            })
+            :
+            weui.alert('没有车辆选择')
+            ;
+    });
+
+    //地址
+    W.$ajax('/address', {}, address)
+    function address(res) {
+        console.log(res, 'address')
+        var addr_data = [];
+        var provi = [];
+        var city = [];
+        var addr = [];
+
+        res.forEach((ele, index) => {
+            var op = {}
+            if (ele.level == 1) {
+                op.label = ele.areaName;
+                op.value = ele.id;
+                provi.push(op);
+                addr_data.push(op);
+            } else if (ele.level == 2) {
+                op.label = ele.areaName;
+                op.value = ele.id;
+                op.p = ele.parentId
+                city.push(op);
+            } else {
+                op.label = ele.areaName;
+                op.value = ele.id;
+                op.p = ele.parentId;
+                addr.push(op);
+            }
+        })
+
+        city.forEach((ele, index) => {
+            ele.children = [];
+            addr.forEach((e, i) => {
+                if (ele.value == e.p) {
+                    delete e.p;
+                    ele.children.push(e);
+                }
+
+            })
+        })
+        provi.forEach((ele, index) => {
+            ele.children = [];
+            city.forEach((e, i) => {
+                if (ele.value == e.p) {
+                    delete e.p;
+                    ele.children.push(e);
+                }
+            })
+        })
+        console.log(provi, city, addr)
+        // console.log(addr_data,'addr')
+        $('#address').on('click', function () {
+            weui.picker(provi, {
+                depth: 3,
+                defaultValue: [11, 177, 2164],
+                onChange: function onChange(result) {
+                    console.log(result);
+                },
+                onConfirm: function onConfirm(result) {
+                    result[1].label == '温州市' ? is_kq = false : is_kq = true;
+                    var text = result.reduce(function (pre, current) {
+                        return pre.label ? pre.label + current.label : pre + current.label
+                    })
+                    form_option.province = text;
+                    // console.log(text)
+                    $('#address .weui-cell__ft').text(text);
+                    $('#address .weui-cell__ft').css({ color: '#000' });
+                    console.log(is_kq, '跨区')
+                },
+                id: 'address'
             });
         });
 
-        $('#user').on('change', function (e) {
-            form_option.name = e.target.value;
-        })
-        $('#peer').on('change', function (e) {
-            form_option.peer = e.target.value;
-        })
-        $('#driver').on('change', function (e) {
-            form_option.driver = e.target.value;
-        })
-        $('#deta_addr').on('change', function (e) {
-            form_option.address = e.target.value;
-        })
+    }
 
 
-        $('input[name="order"]').on('click', function (e) {
-            form_option.night = e.target.value;
-            console.log(form_option);
+
+    function all_depart(res) {
+        console.log(res, 'depart')
+        all_depart = res;
+        var depart_data = [];
+        res.forEach((ele, index) => {
+            var op = {};
+            op.label = ele.name;
+            op.value = ele.objectId;
+            depart_data.push(op);
         });
-        //局领导的地址
-        $('input[name="address2"]').on('click', function (e) {
-            console.log(e.target.value)
-            form_option.address = e.target.value
+    }
+
+
+    var op_arr = [];
+    for (var i = 0; i < use_reason.length; i++) {
+        var op_i = {};
+        op_i.label = use_reason[i];
+        op_i.value = i + 1;
+        op_arr.push(op_i);
+    }
+    console.log(op_arr)
+    $('#reason').on('click', function () {
+        weui.picker(op_arr, {
+            defaultValue: ['1'],
+            onChange: function (result) {
+                console.log(result);
+            },
+            onConfirm: function (result) {
+                // console.log(result);
+                form_option.days = result[0].label;
+                var text = result[0].label;
+                $('#reason .weui-cell__ft').text(text);
+                $('#reason .weui-cell__ft').css({ color: '#000' })
+            },
+            id: 'reason'
         });
+    });
+
+    $('#user').on('change', function (e) {
+        form_option.name = e.target.value;
+    })
+    $('#peer').on('change', function (e) {
+        form_option.peer = e.target.value;
+    })
+    $('#driver').on('change', function (e) {
+        form_option.driver = e.target.value;
+    })
+    $('#deta_addr').on('change', function (e) {
+        form_option.address = e.target.value;
+    })
 
 
-        //部门内的审批人
-        function getAudit() {
-            wistorm_api._list('employee', { departId: _user.depart.objectId, role: 12 }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                console.log(emp, 'emp')
-                var i = 0;
-                emp.data.forEach(ele => {
-                    wistorm_api.getUserList({ objectId: ele.uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-                        ele.userId = json.data[0].username;
-                        i++;
-                        if (i == emp.total) {
-                            // showaudit(emp.data)
-                            console.log(emp.data)
-                            showauditer(emp.data)
-                        }
-                    })
+    $('input[name="order"]').on('click', function (e) {
+        form_option.night = e.target.value;
+        console.log(form_option);
+    });
+    //局领导的地址
+    $('input[name="address2"]').on('click', function (e) {
+        console.log(e.target.value)
+        form_option.address = e.target.value
+    });
+
+
+    //部门内的审批人
+    function getAudit() {
+        wistorm_api._list('employee', { departId: _user.depart.objectId, role: 12 }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
+            console.log(emp, 'emp')
+            var i = 0;
+            emp.data.forEach(ele => {
+                wistorm_api.getUserList({ objectId: ele.uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
+                    ele.userId = json.data[0].username;
+                    i++;
+                    if (i == emp.total) {
+                        // showaudit(emp.data)
+                        console.log(emp.data)
+                        showauditer(emp.data)
+                    }
                 })
             })
-        }
-        //所有部门的审批人
-        function showauditer(data) {
-            $('#addauditeres').empty();
-            data.forEach((ele, index) => {
-                var id = 'auditer_' + index
-                var tr_content = `<span>
+        })
+    }
+    //所有部门的审批人
+    function showauditer(data) {
+        $('#addauditeres').empty();
+        data.forEach((ele, index) => {
+            var id = 'auditer_' + index
+            var tr_content = `<span>
                <input type="checkbox" id=${id} name="allAuditer" value=${ele.userId} /> <label for=${id} style="position: relative;left: -4px;top: -1px;">${ele.name}</label></span>`
-                $('#addauditeres').append(tr_content)
-            })
-            $('#auditer').show()
+            $('#addauditeres').append(tr_content)
+        })
+        $('#auditer').show()
+    }
+
+    //审批人全选或者不选
+    $("#changeselect").click(function () {
+        $("input[name='allAuditer']").prop("checked", this.checked);
+    });
+
+
+
+    $('#toastBtn').on('click', function () {
+        var data = [];
+        var str = [];
+        var select_arr = [];
+        form_option.id = 0;
+        form_option.cre_tm = ~~(new Date().getTime() / 1000);
+
+
+        var audit_list = $('input[name="allAuditer"]')
+        for (var o in audit_list) {
+            audit_list[o].checked ? select_arr.push(audit_list[o].value) : null
         }
 
-        //审批人全选或者不选
-        $("#changeselect").click(function () {
-            $("input[name='allAuditer']").prop("checked", this.checked);
-        });
+        console.log(select_arr)
+        debugger;
+        if (_user.employee) {
+            if (_user.employee.role == 13) { //局领导
+                // form_option.driver = 3;
+                form_option.depart = _user.employee.departId;
+                form_option.uid = _user.employee.uid;
+                form_option.name = _user.employee.name;
 
-
-
-        $('#toastBtn').on('click', function () {
-            var data = [];
-            var str = [];
-            var select_arr = [];
-            form_option.id = 0;
-            form_option.cre_tm = ~~(new Date().getTime() / 1000);
-
-
-            var audit_list = $('input[name="allAuditer"]')
-            for (var o in audit_list) {
-                audit_list[o].checked ? select_arr.push(audit_list[o].value) : null
-            }
-
-            console.log(select_arr)
-            debugger;
-            if (_user.employee) {
-                if (_user.employee.role == 13) { //局领导
-                    // form_option.driver = 3;
-                    form_option.depart = _user.employee.departId;
-                    form_option.uid = _user.employee.uid;
-                    form_option.name = _user.employee.name;
-
-                    // form_option.estatus = 8;
-                    // form_option.is_sh = 2;
-                    form_option.role = role[_user.employee.role];
+                // form_option.estatus = 8;
+                // form_option.is_sh = 2;
+                form_option.role = role[_user.employee.role];
+                // form_option.sp_status = 5;
+                form_option.address = $('input[name="address2"]:checked').val();
+                form_option.use_type = 3;
+            } else { //局领导和驾驶员申请除外
+                if (_user.employee.isDriver) {
                     // form_option.sp_status = 5;
-                    form_option.address = $('input[name="address2"]:checked').val();
-                    form_option.use_type = 3;
-                } else { //局领导和驾驶员申请除外
-                    if (_user.employee.isDriver) {
-                        // form_option.sp_status = 5;
-                        if (!$('#user').val() && !form_option.name) {
-                            weui.alert('请填写或选择使用人');
-                            return false;
-                        } else {
-                            form_option.name = form_option.name || $('#user').val()
-                        }
-                        // form_option.driver = $('#driver').val();
-                    } else {
-                        form_option.name = $('#user').val();
-                        form_option.sp_status = 1;
-                    }
-                    form_option.driver = $('#driver').val();
-                    if (!form_option.name) {
-                        weui.alert('请输入使用人');
-                        return;
-                    }
-                    if (!form_option.use_type) {
-                        weui.alert('请选择用车');
+                    if (!$('#user').val() && !form_option.name) {
+                        weui.alert('请填写或选择使用人');
                         return false;
                     } else {
-                        if (!form_option.car_num && form_option.use_type != 3) {
-                            weui.alert('请选择车辆');
-                            return;
-                        }
+                        form_option.name = form_option.name || $('#user').val()
                     }
-                    if (form_option.use_type == 1 || form_option.use_type == 2) {
-                        if (!form_option.car_num) {
-                            weui.alert('请选择车辆');
-                            return;
-                        }
-                        if (!form_option.driver) {
-                            weui.alert('请输入驾驶员');
-                            return false;
-
-                        }
-                    }
-                    if (!form_option.province) {
-                        weui.alert('请选择地址');
+                    // form_option.driver = $('#driver').val();
+                } else {
+                    form_option.name = $('#user').val();
+                    form_option.sp_status = 1;
+                }
+                form_option.driver = $('#driver').val();
+                if (!form_option.name) {
+                    weui.alert('请输入使用人');
+                    return;
+                }
+                if (!form_option.use_type) {
+                    weui.alert('请选择用车');
+                    return false;
+                } else {
+                    if (!form_option.car_num && form_option.use_type != 3) {
+                        weui.alert('请选择车辆');
                         return;
                     }
-                    if (!form_option.days) {
-                        weui.alert('请选择事由');
+                }
+                if (form_option.use_type == 1 || form_option.use_type == 2) {
+                    if (!form_option.car_num) {
+                        weui.alert('请选择车辆');
                         return;
                     }
+                    if (!form_option.driver) {
+                        weui.alert('请输入驾驶员');
+                        return false;
 
-                    if (!_user.employee.isDriver) {
-                        if (!select_arr.length) {
-                            weui.alert('请选择审核人');
-                            return false;
-                        }
                     }
+                }
+                if (!form_option.province) {
+                    weui.alert('请选择地址');
+                    return;
+                }
+                if (!form_option.days) {
+                    weui.alert('请选择事由');
+                    return;
+                }
+
+                if (!_user.employee.isDriver) {
+                    if (!select_arr.length) {
+                        weui.alert('请选择审核人');
+                        return false;
+                    }
+                }
 
 
-                    if (_user.employee.role == 12) {
+                if (_user.employee.role == 12) {
+                    form_option.status = 1;
+                    form_option.estatus = 2;
+
+                } else {
+                    if (form_option.night > 0 || is_kq) {
+                        form_option.status = 3;
+                        form_option.estatus = 2;
+                    } else {
                         form_option.status = 1;
                         form_option.estatus = 2;
-
-                    } else {
-                        if (form_option.night > 0 || is_kq) {
-                            form_option.status = 3;
-                            form_option.estatus = 2;
-                        } else {
-                            form_option.status = 1;
-                            form_option.estatus = 2;
-                        }
                     }
-
                 }
 
             }
 
+        }
 
-            var spstatus_json = {
-                id: 0,
-                status: 1,
-                isagree: 0,
-                cre_tm: ~~(new Date().getTime() / 1000),
-                sp_status: 1
-            }
-            if (_user.employee.role == 13 || syrid) {
-                spstatus_json.status = 3;
-                spstatus_json.isagree = 1;
-                spstatus_json.uid = syruid ? syruid : _user.employee.uid;
-                spstatus_json.sp_status = 5 //直接通过
-                // form_option.estatus = 8;
-                form_option.sp_status = 5 //直接通过
-                form_option.is_sh = 2;
-                form_option.status = 1;
-                form_option.estatus = syrid ? 9 : 8
-            }
-            debugger;
 
+        var spstatus_json = {
+            id: 0,
+            status: 1,
+            isagree: 0,
+            cre_tm: ~~(new Date().getTime() / 1000),
+            sp_status: 1
+        }
+        if (_user.employee.role == 13 || syrid) {
+            spstatus_json.status = 3;
+            spstatus_json.isagree = 1;
+            spstatus_json.uid = syruid ? syruid : _user.employee.uid;
+            spstatus_json.sp_status = 5 //直接通过
+            // form_option.estatus = 8;
+            form_option.sp_status = 5 //直接通过
+            form_option.is_sh = 2;
+            form_option.status = 1;
+            form_option.estatus = syrid ? 9 : 8
+        }
+        debugger;
+
+        W.$ajax('mysql_api/create', {
+            table: 'ga_apply',
+            json_p: form_option,
+        }, function (res) {
+            console.log(res, 'res')
+            spstatus_json.apply_id = res.id;
             W.$ajax('mysql_api/create', {
-                table: 'ga_apply',
-                json_p: form_option,
-            }, function (res) {
-                console.log(res, 'res')
-                spstatus_json.apply_id = res.id;
-                W.$ajax('mysql_api/create', {
-                    table: 'ga_spstatus',
-                    json_p: spstatus_json,
-                }, function (spst) {
-                    debugger;
-                    if (vehicleId) {
-                        wistorm_api._update('vehicle', { objectId: vehicleId }, { status: 1 }, W.getCookie('auth_code'), true, function (veh) {
-                            weui.alert('提交成功', function () {
-
-                                if (_user.employee.role == 13) { //推送给车队队长
-                                    var i = 0;
-                                    vehicle_people.forEach(ele => {
-                                        sendmessage(res.id, ele.user.username, form_option.name, '用车', 3, '', function () {
-                                            i++;
-                                            if (vehicle_people.length == i) {
-                                                applyHide()
-                                            }
-
-                                        })
-                                    })
-                                } else if (_user.employee.isDriver) {
-                                    var tel = _user.employee.name + '(' + _user.employee.tel + ')'
-                                    sendmessage(res.id, syrid, form_option.name, '用车', 1, tel, function () {
-                                        applyHide()
-                                    })
-                                } else {
-                                    var i = 0;
-                                    select_arr.forEach(ele => {
-                                        sendmessage(res.id, ele, form_option.name, '用车', 2, '', function () {
-                                            i++;
-                                            if (i == select_arr.length) {
-                                                applyHide()
-                                            }
-                                        })
-                                    })
-                                }
-
-                            });
-                        });
-                    } else {
+                table: 'ga_spstatus',
+                json_p: spstatus_json,
+            }, function (spst) {
+                debugger;
+                if (vehicleId) {
+                    wistorm_api._update('vehicle', { objectId: vehicleId }, { status: 1 }, W.getCookie('auth_code'), true, function (veh) {
                         weui.alert('提交成功', function () {
+
                             if (_user.employee.role == 13) { //推送给车队队长
-                                // sendmessage(res.id, vehicle_people[0].userid, form_option.name, '用车', 3, '', function () {
-                                //     applyHide()
-                                // })
                                 var i = 0;
                                 vehicle_people.forEach(ele => {
                                     sendmessage(res.id, ele.user.username, form_option.name, '用车', 3, '', function () {
@@ -688,11 +649,11 @@ $(document).ready(function () {
                                         if (vehicle_people.length == i) {
                                             applyHide()
                                         }
+
                                     })
                                 })
                             } else if (_user.employee.isDriver) {
-                                // var tel = _user.employee.name + '(' + _user.employee.tel + ')'
-                                var tel = _user.employee.name + '(' + _user.employee.tel + (_user.employee.wechat ? '(' + _user.employee.wechat + ')' : '') + ')'
+                                var tel = _user.employee.name + '(' + _user.employee.tel + ')'
                                 sendmessage(res.id, syrid, form_option.name, '用车', 1, tel, function () {
                                     applyHide()
                                 })
@@ -707,2807 +668,83 @@ $(document).ready(function () {
                                     })
                                 })
                             }
+
                         });
-                    }
-                })
-            })
-        });
-
-        function applyHide() {
-            $('#pc_apply', window.parent.document).toggle('slow', function () {
-                $('#pc_apply', window.parent.document).empty()
-            })
-        }
-        function sendmessage(id, userid, username, title, type, tel, callback) {
-            var titles = title || '用车申请'
-            var str = 'http://jct.chease.cn' + '/my_list?applyid=' + id;
-            if (type == 1) { //提交
-                str += '&my=true'
-            } else if (type == 2) { //审核
-                str += '&auditing=true'
-            } else if (type == 3) { //车队
-                str += '&vehiclesend=true'
-            }
-            str += '&userid=' + userid
-            var _desc = username + '的' + titles
-            if (tel) {
-                _desc += '\n驾驶员' + tel
-            }
-            var _op_data = { touser: userid, title: titles, desc: _desc, url: str, remark: "查看详情" };
-            $.ajax({
-                url: 'http://h5.bibibaba.cn/send_qywx.php',
-                data: _op_data,
-                dataType: 'jsonp',
-                crossDomain: true,
-                success: function (re) {
-                    callback()
-                },
-                error: function (err) {
-                    // console.log(err)
-                    callback()
-
-                }
-            })
-        }
-    }
-    beta2()
-
-    function beta1() {
-        var all_depart;
-        var form_option = {};
-        var _user = JSON.parse(localStorage.getItem('user1'));
-        var is_kq = null; //是否跨区
-        var _val = $('input[name="order"]:checked').val();
-        var apend_data = []; //显示的审核人
-        var vehicle_people = [];
-        var juboss = [];
-        var vehicleId = null; //车辆id
-        var car_data = [];
-        var syrid = null; //使用人id
-        var syruid = null;
-        var use_reason = ['执法办案', '社会面管理', '重大勤务', '督察检查', '指挥通信', '现场勘查', '押解', '勤务保障', '其他执法执勤']
-
-        form_option.night = _val;
-        console.log(_user, 'user')
-        var role = {
-            9: '民警',
-            12: '科所队领导',
-            13: '局领导'
-        }
-        var apply_estatus = {
-            '0': '已结束',
-            '2': '科所队领导审批',
-            '4': '警务保障室领导审批',
-            '6': '局领导审批',
-            '8': '已通过',
-            'A': '已还车'
-        }
-        if (_user.user) {
-            form_option.uid = _user.user.objectId;
-            form_option.role = role[_user.employee.role];
-            form_option.depart = _user.depart.objectId
-            $('#user').val(_user.employee.name)
-
-            if (_user.employee.role == '13') {
-                $('#borrow').parent().hide();
-                $('#night').hide();
-                $('#auditer').hide();
-                $('#reason').parent().hide();
-                $('#address1').hide();
-                $('#usershow').hide();
-                $('#peershow').hide();
-                $('#address').parent().hide();
-                $('#address2').parent().show()
-            } else {
-                $('#borrow').parent().show();
-                $('#night').show();
-            }
-
-            if (_user.employee.isDriver) {
-                $('#jldselectshow').show();
-                $('#user').val('');
-                $('#driver').val(_user.employee.name)
-                departBoss()
-            } else {
-                if (_user.employee.role != 13) {
-                    getAudit()
-                }
-            }
-
-            wistorm_api._list('department', { objectId: '>0', uid: _user.employee.companyId }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (dep) {
-                all_depart(dep.data)
-            })
-            vehicle_lister()
-        } else {
-
-        }
-
-        $('#user').on('change', function () {
-            console.log(this.value.trim())
-            wistorm_api._list('employee', { name: this.value.trim() }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                if (!emp.total) {
-                    weui.alert('该申请人不存在')
+                    });
                 } else {
-                    wistorm_api.getUserList({ objectId: emp.data[0].uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-                        syrid = json.data[0].username;
-                        syruid = json.data[0].objectId;
-                    })
-                }
-
-            })
-        })
-
-        // function vehicle_lister() {
-        //     wistorm_api._list('employee', { departId: 58, role: "12|13" }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-        //         var i = 0;
-        //         emp.data.forEach(ele => {
-        //             wistorm_api.getUserList({ objectId: emp.data[0].uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-        //                 ele.userid = json.data[0].username;
-        //                 i++;
-        //                 if (i == emp.total) {
-        //                     console.log(emp.data)
-        //                     vehicle_people = emp.data
-        //                 }
-        //             })
-        //         })
-        //     })
-        // }
-
-
-        function departBoss() {
-            wistorm_api._list('employee', { departId: 1 }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                var i = 0;
-                var j_arr = [];
-                emp.data.forEach(ele => {
-                    wistorm_api.getUserList({ objectId: ele.uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-                        // sqrid = json.data[0].username;
-                        ele.userid = json.data[0].username;
-                        var op_json = { label: ele.name, value: json.data[0].username };
-                        j_arr.push(op_json)
-                        i++;
-                        if (emp.data.length == i) {
-                            selectBoss(j_arr, emp.data)
-                        }
-                    })
-                })
-            })
-        }
-        function selectBoss(data, all) {
-            $('#jldselectshow').on('click', function () {
-                weui.picker(data, {
-                    onConfirm: function (result) {
-                        // console.log(result,'boss')
-                        $('#jldselectshow .weui-cell__ft').text(result[0].label)
-                        $('#jldselectshow .weui-cell__ft').css({ color: '#000' })
-                        syrid = result[0].value;
-                        form_option.name = result[0].label;
-                        var _sqruid = all.filter(ele => ele.userid == syrid);
-                        syruid = _sqruid[0].uid
-                    },
-                    id: 'jldselectshow'
-                });
-            });
-        }
-
-        //用车单位
-        $('#borrow').on('click', function () {
-            weui.picker([
-                {
-                    label: '本单位车辆',
-                    value: '1'
-                }, {
-                    label: '向其他单位借车',
-                    value: '2'
-                }, {
-                    label: '向车队申请派车',
-                    value: '3'
-                }
-            ], {
-                    defaultValue: ['1'],
-                    onConfirm: function (result) {
-                        // console.log(result);
-                        // form_option.borrow = result[0];
-                        vehicleId = null;
-
-                        var _v = result[0].value;
-                        // form_option.driver = _v;
-                        form_option.use_type = _v;
-                        _user.employee.isDriver ? '' : $("#driver").val("")
-                        delete_depart();
-                        delete_car();
-                        if (_v == 3) {
-                            $('#car_driver').hide();
-                            $('#borrow_depart1').hide();
-                        } else {
-                            _v == 1 ? $('#car_driver').show() : $('#car_driver').hide();
-                            _v == 2 ? $('#borrow_depart1').show() : $('#borrow_depart1').hide();
-                            _v == 1 ? get_carData(_user.depart.objectId) : null;
-
-                        }
-                        $('#borrow .weui-cell__ft').text(result[0].label);
-                        $('#borrow .weui-cell__ft').css({ color: '#000' });
-                        _v == 2 ? other_depart() : null;
-                    },
-                    id: 'borrow'
-                });
-        });
-
-
-
-        function get_carData(depart) {
-            wistorm_api._list('vehicle', { departId: depart }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (veh) {
-                var i = 0;
-                if (veh.data.length) {
-                    veh.data.forEach(ele => {
-                        if (ele.status == 1) { //出车
-                            W.$ajax('mysql_api/list', {
-                                table: 'ga_apply',
-                                json_p: { car_num: ele.name, etm: 0 },
-                                sorts: '-id'
-                            }, function (res) {
-                                ele.apply = res.data[0];
-                                if (res.data[0]) {
-                                    wistorm_api._list('employee', { name: res.data[0].name }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                                        i++;
-                                        ele.driverMessage = emp.data[0];
-                                        if (i == veh.data.length) {
-                                            get_car(veh.data)
-                                        }
-                                    })
-                                } else {
+                    weui.alert('提交成功', function () {
+                        if (_user.employee.role == 13) { //推送给车队队长
+                            // sendmessage(res.id, vehicle_people[0].userid, form_option.name, '用车', 3, '', function () {
+                            //     applyHide()
+                            // })
+                            var i = 0;
+                            vehicle_people.forEach(ele => {
+                                sendmessage(res.id, ele.user.username, form_option.name, '用车', 3, '', function () {
                                     i++;
-                                    // ele.driverMessage = emp.data[0];
-                                    if (i == veh.data.length) {
-                                        get_car(veh.data)
-                                    }
-                                }
-
-
-                            })
-                        } else {
-                            i++;
-                            if (i == veh.data.length) {
-                                get_car(veh.data)
-                            }
-                        }
-                    })
-                } else {
-                    get_car(veh.data)
-                }
-            })
-            function get_car(res) {
-                console.log(res, 'car')
-                car_data = [];
-                var user_car = [];
-                res.forEach((ele, index) => {
-                    var op = {};
-                    if (ele.status == 1) {
-                        ele.apply && ele.driverMessage ? op.label = ele.name + '(' + ele.apply.name + ele.driverMessage.tel + ')' : ele.apply ? op.label = ele.name + '(' + ele.apply.name + ')' : op.label = ele.name;
-                    } else {
-                        op.label = ele.name
-                    }
-                    op.value = ele.objectId;
-                    car_data.push(op);
-                    ele.status == 0 ? user_car.push(ele) : null
-                })
-            }
-        }
-
-        //借车单位
-        function other_depart() {
-            $('#borrow_depart').on('click', function () {
-                var depart_data = [];
-                var _index = null;
-                all_depart.forEach((ele, index) => {
-                    var op = {};
-                    if (ele.objectId != 1 && ele.objectId != _user.depart.objectId && ele.name != '车队' && ele.name != '修理厂') {
-                        op.label = ele.name;
-                        op.value = ele.objectId;
-                        depart_data.push(op)
-                    }
-                })
-                _index = depart_data[0].value
-                weui.picker(depart_data, {
-                    defaultValue: [_index],
-                    onConfirm: function (result) {
-                        // form_option.depart = result[0].value;
-                        delete_car();
-                        get_carData(result[0].value);
-                        $('#car_driver').show()
-                        $('#borrow_depart .weui-cell__ft').text(result[0].label);
-                        $('#borrow_depart .weui-cell__ft').css({ color: '#000' });
-                        console.log(result, form_option)
-                    },
-                    id: 'borrow_depart'
-                });
-            });
-        }
-
-        function delete_car() {
-            delete form_option.car_num;
-            $('#select_car .weui-cell__ft').text('请选择');
-            $('#select_car .weui-cell__ft').css({ color: '#ccc' });
-        }
-
-        function delete_depart() {
-            // delete form_option.car_num
-            $('#borrow_depart .weui-cell__ft').text('请选择');
-            $('#borrow_depart .weui-cell__ft').css({ color: '#ccc' });
-        }
-
-        $('#select_car').on('click', function () {
-            car_data.length ?
-                weui.picker(car_data, {
-                    onChange: function (result) {
-                        console.log(result);
-                    },
-                    onConfirm: function (result) {
-                        // console.log(result);
-                        if (result[0].label.indexOf('(') > -1) {
-                            weui.alert('车辆正在使用中')
-                        } else {
-                            form_option.car_num = result[0].label;
-                            vehicleId = result[0].value;
-                            $('#select_car .weui-cell__ft').text(result[0].label);
-                            $('#select_car .weui-cell__ft').css({ color: '#000' });
-                        }
-
-                    },
-                    id: 'select_car'
-                })
-                :
-                weui.alert('没有车辆选择')
-                ;
-        });
-        //地址
-        // getJson('./address', address)
-        W.$ajax('/address', {}, address)
-        function address(res) {
-            console.log(res, 'address')
-            var addr_data = [];
-            var provi = [];
-            var city = [];
-            var addr = [];
-
-            res.forEach((ele, index) => {
-                var op = {}
-                if (ele.level == 1) {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    provi.push(op);
-                    addr_data.push(op);
-                } else if (ele.level == 2) {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    op.p = ele.parentId
-                    city.push(op);
-                } else {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    op.p = ele.parentId;
-                    addr.push(op);
-                }
-            })
-
-            city.forEach((ele, index) => {
-                ele.children = [];
-                addr.forEach((e, i) => {
-                    if (ele.value == e.p) {
-                        delete e.p;
-                        ele.children.push(e);
-                    }
-
-                })
-            })
-            provi.forEach((ele, index) => {
-                ele.children = [];
-                city.forEach((e, i) => {
-                    if (ele.value == e.p) {
-                        delete e.p;
-                        ele.children.push(e);
-                    }
-                })
-            })
-            console.log(provi, city, addr)
-            // console.log(addr_data,'addr')
-            $('#address').on('click', function () {
-                weui.picker(provi, {
-                    depth: 3,
-                    defaultValue: [11, 177, 2164],
-                    onChange: function onChange(result) {
-                        console.log(result);
-                    },
-                    onConfirm: function onConfirm(result) {
-                        result[1].label == '温州市' ? is_kq = false : is_kq = true;
-                        var text = result.reduce(function (pre, current) {
-                            return pre.label ? pre.label + current.label : pre + current.label
-                        })
-                        form_option.province = text;
-                        // console.log(text)
-                        $('#address .weui-cell__ft').text(text);
-                        $('#address .weui-cell__ft').css({ color: '#000' });
-                        console.log(is_kq, '跨区')
-                    },
-                    id: 'address'
-                });
-            });
-
-        }
-
-
-
-        function all_depart(res) {
-            console.log(res, 'depart')
-            all_depart = res;
-            var depart_data = [];
-            res.forEach((ele, index) => {
-                var op = {};
-                op.label = ele.name;
-                op.value = ele.objectId;
-                depart_data.push(op);
-            });
-        }
-
-
-        var op_arr = [];
-        for (var i = 0; i < use_reason.length; i++) {
-            var op_i = {};
-            op_i.label = use_reason[i];
-            op_i.value = i + 1;
-            op_arr.push(op_i);
-        }
-        console.log(op_arr)
-        $('#reason').on('click', function () {
-            weui.picker(op_arr, {
-                defaultValue: ['1'],
-                onChange: function (result) {
-                    console.log(result);
-                },
-                onConfirm: function (result) {
-                    // console.log(result);
-                    form_option.days = result[0].label;
-                    var text = result[0].label;
-                    $('#reason .weui-cell__ft').text(text);
-                    $('#reason .weui-cell__ft').css({ color: '#000' })
-                },
-                id: 'reason'
-            });
-        });
-
-        $('#user').on('change', function (e) {
-            form_option.name = e.target.value;
-        })
-        $('#peer').on('change', function (e) {
-            form_option.peer = e.target.value;
-        })
-        $('#driver').on('change', function (e) {
-            form_option.driver = e.target.value;
-        })
-        $('#deta_addr').on('change', function (e) {
-            form_option.address = e.target.value;
-        })
-
-
-        $('input[name="order"]').on('click', function (e) {
-            form_option.night = e.target.value;
-            console.log(form_option);
-        });
-        //局领导的地址
-        $('input[name="address2"]').on('click', function (e) {
-            console.log(e.target.value)
-            form_option.address = e.target.value
-        });
-
-
-        //部门内的审批人
-        function getAudit() {
-            wistorm_api._list('employee', { departId: _user.depart.objectId, role: 12 }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                console.log(emp, 'emp')
-                var i = 0;
-                emp.data.forEach(ele => {
-                    wistorm_api.getUserList({ objectId: ele.uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-                        ele.userId = json.data[0].username;
-                        i++;
-                        if (i == emp.total) {
-                            // showaudit(emp.data)
-                            console.log(emp.data)
-                            showauditer(emp.data)
-                        }
-                    })
-                })
-            })
-        }
-        //所有部门的审批人
-        function showauditer(data) {
-            $('#addauditeres').empty();
-            data.forEach((ele, index) => {
-                var id = 'auditer_' + index
-                var tr_content = `<span>
-               <input type="checkbox" id=${id} name="allAuditer" value=${ele.userId} /> <label for=${id} style="position: relative;left: -4px;top: -1px;">${ele.name}</label></span>`
-                $('#addauditeres').append(tr_content)
-            })
-            $('#auditer').show()
-        }
-
-        //审批人全选或者不选
-        $("#changeselect").click(function () {
-            $("input[name='allAuditer']").prop("checked", this.checked);
-        });
-
-
-
-        $('#toastBtn').on('click', function () {
-            var data = [];
-            var str = [];
-            var select_arr = [];
-            form_option.id = 0;
-            form_option.cre_tm = ~~(new Date().getTime() / 1000);
-
-
-            var audit_list = $('input[name="allAuditer"]')
-            for (var o in audit_list) {
-                audit_list[o].checked ? select_arr.push(audit_list[o].value) : null
-            }
-
-            console.log(select_arr)
-            debugger;
-            if (_user.employee) {
-                if (_user.employee.role == 13) { //局领导
-                    // form_option.driver = 3;
-                    form_option.depart = _user.employee.departId;
-                    form_option.uid = _user.employee.uid;
-                    form_option.name = _user.employee.name;
-                    form_option.status = 1;
-                    form_option.estatus = 8;
-                    form_option.is_sh = 2;
-                    form_option.role = role[_user.employee.role];
-                    form_option.address = $('input[name="address2"]:checked').val();
-                    form_option.use_type = 3;
-                } else { //局领导和驾驶员申请除外
-                    if (_user.employee.isDriver) {
-                        if (!$('#user').val() && !form_option.name) {
-                            weui.alert('请填写或选择使用人');
-                            return false;
-                        } else {
-                            form_option.name = form_option.name || $('#user').val()
-                        }
-                        // form_option.driver = $('#driver').val();
-                    } else {
-                        form_option.name = $('#user').val();
-
-                    }
-                    form_option.driver = $('#driver').val();
-                    if (!form_option.name) {
-                        weui.alert('请输入使用人');
-                        return;
-                    }
-                    if (!form_option.use_type) {
-                        weui.alert('请选择用车');
-                        return false;
-                    } else {
-                        if (!form_option.car_num && form_option.use_type != 3) {
-                            weui.alert('请选择车辆');
-                            return;
-                        }
-                    }
-                    if (form_option.use_type == 1 || form_option.use_type == 2) {
-                        if (!form_option.car_num) {
-                            weui.alert('请选择车辆');
-                            return;
-                        }
-                        if (!form_option.driver) {
-                            weui.alert('请输入驾驶员');
-                            return false;
-
-                        }
-                    }
-                    if (!form_option.province) {
-                        weui.alert('请选择地址');
-                        return;
-                    }
-                    if (!form_option.days) {
-                        weui.alert('请选择事由');
-                        return;
-                    }
-
-                    if (!_user.employee.isDriver) {
-                        if (!select_arr.length) {
-                            weui.alert('请选择审核人');
-                            return false;
-                        }
-                    }
-
-
-                    if (_user.employee.role == 12) {
-                        form_option.status = 1;
-                        form_option.estatus = 2;
-                    } else {
-                        if (form_option.night > 0 || is_kq) {
-                            form_option.status = 3;
-                            form_option.estatus = 2;
-                        } else {
-                            form_option.status = 1;
-                            form_option.estatus = 2;
-                        }
-                    }
-
-                }
-
-            }
-
-
-            var spstatus_json = {
-                id: 0,
-                status: 1,
-                isagree: 0,
-                cre_tm: ~~(new Date().getTime() / 1000),
-                sp_status: 1
-            }
-            if (_user.employee.role == 13 || syrid) {
-                spstatus_json.isagree = 1;
-                syruid ? spstatus_json.uid = syruid : spstatus_json.uid = _user.employee.uid;
-                spstatus_json.sp_status = 5 //直接通过
-                form_option.estatus = 8;
-                form_option.is_sh = 2;
-            }
-            debugger;
-
-            W.$ajax('mysql_api/create', {
-                table: 'ga_apply',
-                json_p: form_option,
-            }, function (res) {
-                console.log(res, 'res')
-                spstatus_json.apply_id = res.id;
-                W.$ajax('mysql_api/create', {
-                    table: 'ga_spstatus',
-                    json_p: spstatus_json,
-                }, function (spst) {
-                    if (vehicleId) {
-                        wistorm_api._update('vehicle', { objectId: vehicleId }, { status: 1 }, W.getCookie('auth_code'), true, function (veh) {
-                            weui.alert('提交成功', function () {
-                                if (_user.employee.role == 13) { //推送给车队队长
-                                    sendmessage(res.id, vehicle_people[0].userid, form_option.name, '用车', 3, function () {
-                                        history.back();
-                                    })
-                                } else if (_user.employee.isDriver) {
-                                    var tel = _user.employee.name + '(' + _user.employee.tel + ')'
-                                    sendmessage(res.id, syrid, form_option.name, '用车', 1, tel, function () {
-                                        history.back();
-                                    })
-                                } else {
-                                    var i = 0;
-                                    select_arr.forEach(ele => {
-                                        sendmessage(res.id, ele, form_option.name, '用车', 2, '', function () {
-                                            i++;
-                                            if (i == select_arr.length) {
-                                                history.back();
-                                            }
-                                        })
-                                    })
-                                }
-
-                            });
-                        });
-                    } else {
-                        weui.alert('提交成功', function () {
-                            if (_user.employee.role == 13) { //推送给车队队长
-                                sendmessage(res.id, vehicle_people[0].userid, form_option.name, '用车', 3, '', function () {
-                                    history.back();
-                                })
-                            } else if (_user.employee.isDriver) {
-                                var tel = _user.employee.name + '(' + _user.employee.tel + ')'
-                                sendmessage(res.id, syrid, form_option.name, '用车', 1, tel, function () {
-                                    history.back();
-                                })
-                            } else {
-                                var i = 0;
-                                select_arr.forEach(ele => {
-                                    sendmessage(res.id, ele, form_option.name, '用车', 2, '', function () {
-                                        i++;
-                                        if (i == select_arr.length) {
-                                            history.back();
-                                        }
-                                    })
-                                })
-                            }
-
-                        });
-                    }
-                })
-
-            })
-        });
-        function sendmessage(id, userid, username, title, type, tel, callback) {
-            var titles = title || '用车申请'
-            var str = 'http://jct.chease.cn' + '/my_list?applyid=' + id;
-            if (type == 1) { //提交
-                str += '&my=true'
-            } else if (type == 2) { //审核
-                str += '&auditing=true'
-            } else if (type == 3) { //车队
-                str += '&vehiclesend=true'
-            }
-            str += '&userid=' + userid
-            var _desc = name + '的' + titles
-            if (tel) {
-                _desc += '\n驾驶员' + tel
-            }
-            var _op_data = { touser: 'RuanJunGuang', title: titles, desc: _desc, url: str, remark: "查看详情" };
-            $.ajax({
-                url: 'http://h5.bibibaba.cn/send_qywx.php',
-                data: _op_data,
-                dataType: 'jsonp',
-                crossDomain: true,
-                success: function (re) {
-                    callback()
-                },
-                error: function (err) {
-                    // console.log(err)
-                    callback()
-
-                }
-            })
-        }
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // beta1()
-    // function beta() {
-    //     $(document).ready(function () {
-    function beta() {
-        var all_depart;
-        var form_option = {};
-        var _user = JSON.parse(localStorage.getItem('user1'));
-        var is_kq = null; //是否跨区
-        var _val = $('input[name="order"]:checked').val();
-        var apend_data = []; //显示的审核人
-        var vehicleId = null; //车辆id
-        var car_data = [];
-        var use_reason = ['执法办案', '社会面管理', '重大勤务', '督察检查', '指挥通信', '现场勘查', '押解', '勤务保障', '其他执法执勤']
-
-        form_option.night = _val;
-        console.log(_user, 'user')
-        var role = {
-            9: '普通成员',
-            12: '部门领导',
-            13: '公司领导'
-
-        }
-        var apply_estatus = {
-            '0': '已结束',
-            '2': '科所队领导审批',
-            '4': '警务保障室领导审批',
-            '6': '局领导审批',
-            '8': '已通过',
-            'A': '已还车'
-        }
-        if (_user.user) {
-            form_option.uid = _user.user.objectId;
-            form_option.role = role[_user.employee.role];
-            form_option.depart = _user.depart.objectId
-            if (_user.employee.role == "12") {
-                get_carData(_user.depart.objectId, 1)
-                $('#borrow').parent().hide();
-                $('#night').hide();
-                $('#auditer').show();
-                $('#car_driver').show();
-            } else if (_user.employee.role == '13') {
-                $('#borrow').parent().hide();
-                $('#night').hide();
-                $('#auditer').hide();
-                $('#reason').parent().hide();
-                $('#address1').hide();
-                $('#usershow').hide();
-                $('#peershow').hide();
-                $('#address').parent().hide();
-                $('#address2').parent().show()
-                form_option.driver = 3;
-                form_option.depart = _user.employee.departId;
-                form_option.uid = _user.employee.uid;
-                form_option.name = _user.employee.name;
-                form_option.status = 1;
-                form_option.estatus = 8;
-                form_option.is_sh = 2;
-                form_option.role = role[_user.employee.role];
-                form_option.address = $('input[name="address2"]:checked').val();
-            } else {
-                $('#borrow').parent().show();
-                $('#night').show();
-                $('#auditer').show();
-            }
-            // console.log(_user, 'user')
-            wistorm_api._list('department', { objectId: '>0', uid: _user.employee.companyId }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (dep) {
-                // _user1.depart = dep.data[0];
-                // console.log(dep, 'depart')
-                all_depart(dep.data)
-                // mainContral(_user1)
-            })
-        }
-        $('#user').on('change', function () {
-            wistorm_api._list('employee', { name: this.value, companyId: _user.employee.companyId }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                // console.log(emp.total,'ddd')
-                if (!emp.total) {
-                    weui.alert('此人不存在')
-                }
-            })
-        })
-
-        $('#borrow').on('click', function () {
-            weui.picker([
-                {
-                    label: '本单位车辆',
-                    value: '1'
-                }, {
-                    label: '向其他单位借车',
-                    value: '2'
-                }, {
-                    label: '向车队申请派车',
-                    value: '3'
-                }
-            ], {
-                    defaultValue: ['1'],
-                    onChange: function (result) {
-                        // console.log(result);
-                    },
-                    onConfirm: function (result) {
-                        // console.log(result);
-                        // form_option.borrow = result[0];
-                        vehicleId = null;
-                        var _v = result[0].value;
-                        form_option.driver = _v;
-                        $("#driver").val("")
-                        delete_depart();
-                        delete_car();
-                        if (_v == 3) {
-                            $('#car_driver').hide();
-                            $('#borrow_depart1').hide();
-                        } else {
-                            _v == 1 ? $('#car_driver').show() : $('#car_driver').hide();
-                            _v == 2 ? $('#borrow_depart1').show() : $('#borrow_depart1').hide();
-                            _v == 1 ? get_carData(_user.depart.objectId) : null;
-
-                        }
-                        $('#borrow .weui-cell__ft').text(result[0].label);
-                        $('#borrow .weui-cell__ft').css({ color: '#000' });
-                        _v == 2 ? other_depart() : null;
-                    },
-                    id: 'borrow'
-                });
-        });
-
-
-
-        function get_carData(depart, is_kl) {
-            // getJson('./get_car', get_car, { depart: depart })
-            wistorm_api._list('vehicle', { departId: depart }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (veh) {
-                // console.log(veh)
-                var i = 0;
-                if (veh.data.length) {
-                    veh.data.forEach(ele => {
-                        if (ele.status == 1) { //出车
-                            W.$ajax('mysql_api/list', {
-                                table: 'ga_apply',
-                                json_p: { car_num: ele.name, etm: 0 },
-                                sorts: '-id'
-                            }, function (res) {
-                                ele.apply = res.data[0];
-                                wistorm_api._list('employee', { name: res.data[0].name }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                                    i++;
-                                    ele.driverMessage = emp.data[0];
-                                    if (i == veh.data.length) {
-                                        get_car(veh.data, is_kl)
+                                    if (vehicle_people.length == i) {
+                                        applyHide()
                                     }
                                 })
-
+                            })
+                        } else if (_user.employee.isDriver) {
+                            // var tel = _user.employee.name + '(' + _user.employee.tel + ')'
+                            var tel = _user.employee.name + '(' + _user.employee.tel + (_user.employee.wechat ? '(' + _user.employee.wechat + ')' : '') + ')'
+                            sendmessage(res.id, syrid, form_option.name, '用车', 1, tel, function () {
+                                applyHide()
                             })
                         } else {
-                            i++;
-                            if (i == veh.data.length) {
-                                get_car(veh.data, is_kl)
-                            }
-                        }
-                    })
-                } else {
-                    get_car(veh.data, is_kl)
-                }
-            })
-            function get_car(res, is_kl) {
-                console.log(res, 'car')
-                car_data = [];
-                var user_car = [];
-                res.forEach((ele, index) => {
-                    var op = {};
-                    // ele.name ? op.label = ele.cname + '(' + ele.name + ele.mobile + ')' : op.label = ele.cname;
-                    // ele.apply && ele.driverMessage ? op.label = ele.name + '(' + ele.apply.name + ele.driverMessage.tel + ')' : ele.apply ? op.label = ele.name + '(' + ele.apply.name + ')' : op.label = ele.name;
-                    if (ele.status == 1) {
-                        ele.apply && ele.driverMessage ? op.label = ele.name + '(' + ele.apply.name + ele.driverMessage.tel + ')' : ele.apply ? op.label = ele.name + '(' + ele.apply.name + ')' : op.label = ele.name;
-                    } else if (ele.status == 2) {
-                        op.label = ele.name + '( 维保中 )'
-                    } else {
-                        op.label = ele.name
-                    }
-                    // ele.status == 2 ? op.label = ele.name + '( 维保中 )' : op.label = ele.name;
-                    op.value = ele.objectId;
-                    car_data.push(op);
-                    ele.status == 0 ? user_car.push(ele) : null
-                })
-                if (is_kl) { //判断部门领导在本部门是否有可用车辆
-                    if (!user_car.length) { //否由车队派车
-                        weui.alert('本部门没有可使用车辆,由车队派车');
-                        form_option.driver = 3;
-                        $('#car_driver').hide()
-                    }
-                }
-                // is_kl ? !user_car.length ? weui.alert('本部门没有可使用车辆,由车队派车') : null : null;
-                // is_kl ? !user_car.length ? form_option.driver = 3 : null : null;
-                // is_kl ? !user_car.length ? $('#car_driver').hide() : null : null;
-            }
-        }
-
-        //借车单位
-        function other_depart() {
-            $('#borrow_depart').on('click', function () {
-                var depart_data = [];
-                var _index = null;
-                all_depart.forEach((ele, index) => {
-                    var op = {};
-                    if (ele.objectId != 1 && ele.objectId != _user.depart.objectId) {
-                        op.label = ele.name;
-                        op.value = ele.objectId;
-                        depart_data.push(op)
-                    }
-                })
-                _index = depart_data[0].value
-                weui.picker(depart_data, {
-                    defaultValue: [_index],
-                    onChange: function (result) {
-
-                    },
-                    onConfirm: function (result) {
-                        // form_option.depart = result[0].value;
-                        delete_car();
-                        get_carData(result[0].value);
-                        $('#car_driver').show()
-                        $('#borrow_depart .weui-cell__ft').text(result[0].label);
-                        $('#borrow_depart .weui-cell__ft').css({ color: '#000' });
-                        console.log(result, form_option)
-                    },
-                    id: 'borrow_depart'
-                });
-            });
-        }
-
-        function delete_car() {
-            delete form_option.car_num;
-            $('#select_car .weui-cell__ft').text('请选择');
-            $('#select_car .weui-cell__ft').css({ color: '#ccc' });
-        }
-
-        function delete_depart() {
-            // delete form_option.car_num
-            $('#borrow_depart .weui-cell__ft').text('请选择');
-            $('#borrow_depart .weui-cell__ft').css({ color: '#ccc' });
-        }
-
-        $('#select_car').on('click', function () {
-            car_data.length ?
-                weui.picker(car_data, {
-                    onChange: function (result) {
-                        console.log(result);
-                    },
-                    onConfirm: function (result) {
-                        // console.log(result);
-                        form_option.car_num = result[0].label;
-                        vehicleId = result[0].value;
-                        $('#select_car .weui-cell__ft').text(result[0].label);
-                        $('#select_car .weui-cell__ft').css({ color: '#000' });
-                    },
-                    id: 'select_car'
-                })
-                :
-                weui.alert('没有车辆选择')
-                ;
-        });
-        //地址
-        // getJson('./address', address)
-        W.$ajax('/address', {}, address)
-        function address(res) {
-            console.log(res, 'address')
-            var addr_data = [];
-            var provi = [];
-            var city = [];
-            var addr = [];
-
-            res.forEach((ele, index) => {
-                var op = {}
-                if (ele.level == 1) {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    provi.push(op);
-                    addr_data.push(op);
-                } else if (ele.level == 2) {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    op.p = ele.parentId
-                    city.push(op);
-                } else {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    op.p = ele.parentId;
-                    addr.push(op);
-                }
-            })
-
-            city.forEach((ele, index) => {
-                ele.children = [];
-                addr.forEach((e, i) => {
-                    if (ele.value == e.p) {
-                        delete e.p;
-                        ele.children.push(e);
-                    }
-
-                })
-            })
-            provi.forEach((ele, index) => {
-                ele.children = [];
-                city.forEach((e, i) => {
-                    if (ele.value == e.p) {
-                        delete e.p;
-                        ele.children.push(e);
-                    }
-                })
-            })
-            console.log(provi, city, addr)
-            // console.log(addr_data,'addr')
-            $('#address').on('click', function () {
-                weui.picker(provi, {
-                    depth: 3,
-                    defaultValue: [11, 177, 2164],
-                    onChange: function onChange(result) {
-                        console.log(result);
-                    },
-                    onConfirm: function onConfirm(result) {
-                        // console.log(result);
-                        result[1].label == '温州市' ? is_kq = false : is_kq = true;
-                        getAudit()
-                        var text = result.reduce(function (pre, current) {
-                            return pre.label ? pre.label + current.label : pre + current.label
-                        })
-                        form_option.province = text;
-                        // console.log(text)
-                        $('#address .weui-cell__ft').text(text);
-                        $('#address .weui-cell__ft').css({ color: '#000' });
-                        console.log(is_kq, '跨区')
-                    },
-                    id: 'address'
-                });
-            });
-
-        }
-
-
-
-        function all_depart(res) {
-            console.log(res, 'depart')
-            all_depart = res;
-            var depart_data = [];
-            res.forEach((ele, index) => {
-                var op = {};
-                op.label = ele.name;
-                op.value = ele.objectId;
-                depart_data.push(op);
-            });
-        }
-
-
-        var op_arr = [];
-        for (var i = 0; i < use_reason.length; i++) {
-            var op_i = {};
-            op_i.label = use_reason[i];
-            op_i.value = i + 1;
-            op_arr.push(op_i);
-        }
-        console.log(op_arr)
-        $('#reason').on('click', function () {
-            weui.picker(op_arr, {
-                defaultValue: ['1'],
-                onChange: function (result) {
-                    console.log(result);
-                },
-                onConfirm: function (result) {
-                    // console.log(result);
-                    form_option.days = result[0].label;
-                    var text = result[0].label;
-                    $('#reason .weui-cell__ft').text(text);
-                    $('#reason .weui-cell__ft').css({ color: '#000' })
-                },
-                id: 'reason'
-            });
-        });
-
-        $('#user').on('change', function (e) {
-            // console.log(e.target.value)
-            form_option.name = e.target.value;
-        })
-        $('#peer').on('change', function (e) {
-            form_option.peer = e.target.value;
-        })
-        $('#driver').on('change', function (e) {
-            form_option.driver = e.target.value;
-        })
-        $('#deta_addr').on('change', function (e) {
-            form_option.address = e.target.value;
-        })
-
-        // console.log(_val)
-        $('input[name="order"]').on('click', function (e) {
-            form_option.night = e.target.value;
-            getAudit()
-            console.log(form_option);
-        });
-        $('input[name="address2"]').on('click', function (e) {
-            // form_option.night = e.target.value;
-            // getAudit()
-            // console.log(form_option);
-            console.log(e.target.value)
-            form_option.address = e.target.value
-        });
-
-
-
-        function getAudit() {
-            wistorm_api._list('employee', { departId: _user.depart.objectId, role: 12 }, '', '', '-createdAt', 0, 0, 1, -1, W.getCookie('auth_code'), true, function (emp) {
-                console.log(emp, 'emp')
-                var i = 0;
-                emp.data.forEach(ele => {
-                    wistorm_api.getUserList({ objectId: ele.uid }, 'objectId,username,authData,createdAt', '-createdAt', '-createdAt', 0, 0, -1, W.getCookie('auth_code'), function (json) {
-                        ele.userId = json.data[0].username;
-                        i++;
-                        if (i == emp.total) {
-                            showaudit(emp.data)
-                        }
-                    })
-                })
-            })
-        }
-
-        function showaudit(res) {
-            console.log(res, 'res')
-            res.forEach(ele => {
-                if (ele.responsibility.indexOf(0) > -1) {
-                    apend_data[0] = ele;
-                }
-            })
-            apend_data[0] = res[0]
-            show_auditer(apend_data);
-
-            $('#audit_list').empty();
-            res.forEach((ele, index) => {
-                var str = 'ju_l' + index
-                var tr_content = `<div class="weui-cell weui-cell_access" id="` + str + `">
-                            <div class="weui-cell__hd" style="position: relative;margin-right: 10px;">
-                                <img src="./js/merge/img/1.png" style="width: 50px;display: block">
-                            </div>
-                            <div class="weui-cell__bd">
-                                <p>`+ ele.name + `</p>
-                                <p style="font-size: 13px;color: #888888;">`+ role[ele.role] + `</p>
-                            </div>
-                        </div>`
-                $('#audit_list').append(tr_content);
-                var ff = '#' + str
-                $(ff).on('click', function (res) {
-                    select_auditer(ele)
-                })
-            })
-        }
-        function show_auditer(data) {
-            $('#add_auditer').empty();
-            data.forEach((ele, index) => {
-                if (ele) {
-                    var str = 'show_i' + index
-                    var tr_content = `<div class="weui-cell__hd weui-flex" style="position: relative;" >
-                                <img src="./js/merge/img/1.png" class="" style="height:50px;width: 50px;display: block">
-                                <span class="" style="position: absolute;top:-12px;right: 17px;" id="` + str + `">
-                                <i class="weui-icon-cancel icon-delete"></i>
-                                </span>
-                                <span class="l_h_40 elli">...</span>
-                                <span class="addr_book">` + ele.name + `</span>
-                                </div>`
-                    $('#add_auditer').append(tr_content);
-                    var ff = '#' + str
-                    $(ff).on('click', function (res) {
-                        // select_auditer(ele)
-                        // console.log(index)
-                        apend_data[index] = null;
-                        show_auditer(apend_data);
-                    })
-                }
-            })
-        }
-
-
-
-        function select_auditer(data) {
-            // if (data.role == '局领导') {
-            //     apend_data[2] = data
-            // } else if (data.role == '警务保障室领导') {
-            //     apend_data[1] = data
-            // } else {
-            apend_data[0] = data;
-            // }
-            history.back();
-            show_auditer(apend_data);
-        }
-        $('#audit_user').on('click', function () {
-            $('#container').hide();
-            $('#audit_list').show();
-            var state = { 'page_id': 1, 'user_id': 5 };
-            var title = '选择审核人';
-            var url = 'book';
-            history.pushState(state, title, url);
-            window.addEventListener('popstate', function (e) {
-                // console.log(e);
-                $('#container').show();
-                $('#audit_list').hide();
-            });
-        })
-
-
-        $('#toastBtn').on('click', function () {
-            // console.log(form_option)
-            let data = [];
-            let str = [];
-            // form_option.auditer = apend_data;
-            form_option.id = 0;
-            form_option.cre_tm = ~~(new Date().getTime() / 1000);
-            console.log(form_option, 'form_option')
-            // console.log(form_option);
-
-            // for (var o in form_option) {
-            //     // str += o + ','
-            //     str.push(o)
-            //     data.push(form_option[o])
-            // }
-            if (_user.employee.role != 13) {
-                if (!form_option.name) {
-                    weui.alert('请输入使用人');
-                    return;
-                }
-                if (!form_option.province) {
-                    weui.alert('请选择地址');
-                    return;
-                }
-                if (!form_option.days) {
-                    weui.alert('请选择事由');
-                    return;
-                }
-            }
-
-
-            // if (!apend_data[0]) {
-            //     weui.alert('请选择审核人')
-            // } else {
-            //     form_option.status = 1;
-            //     form_option.estatus = 1;
-            // }
-
-            if (_user.employee) {
-                if (_user.employee.role == "12") {
-                    if (!apend_data[0]) {
-                        weui.alert('请选择审核人')
-                    } else {
-                        form_option.status = 1;
-                        form_option.estatus = 2;
-                    }
-                } else if (_user.employee.role == '13') {
-                    form_option.status = 1;
-                    form_option.estatus = 8;
-                } else {
-                    if (!form_option.driver) {
-                        weui.alert('请选择用车')
-                    } else {
-                        if (!form_option.car_num && form_option.driver != 3) {
-                            weui.alert('请选择车辆');
-                            return;
-                        }
-                    }
-                    if (form_option.driver == 1 || form_option.driver == 2) {
-                        if (!form_option.car_num) {
-                            weui.alert('请选择车辆');
-                            return;
-                        }
-                        weui.alert('请输入驾驶人');
-                        return;
-                    }
-                    if (form_option.night > 0 || is_kq) {
-                        form_option.status = 3;
-                        form_option.estatus = 2;
-                    } else {
-                        form_option.status = 1;
-                        form_option.estatus = 2;
-                    }
-
-                }
-            }
-
-            var push_op = {
-                form_option: form_option,
-                auditer: apend_data
-            }
-
-            console.log(push_op)
-
-            var spstatus_json = {
-                id: 0,
-                status: 1,
-                isagree: 0,
-                cre_tm: ~~(new Date().getTime() / 1000),
-                sp_status: 1
-            }
-            if (_user.employee.role == 13) {
-                spstatus_json.isagree = 1;
-                spstatus_json.uid = _user.employee.uid;
-                spstatus_json.sp_status = 5 //直接通过
-                form_option.estatus = 8;
-                form_option.is_sh = 2;
-                apend_data[0] = { userId: _user.user.username };
-            } else {
-                spstatus_json.uid = apend_data[0].uid
-            }
-            console.log(form_option, spstatus_json)
-
-            W.$ajax('mysql_api/create', {
-                table: 'ga_apply',
-                json_p: form_option,
-            }, function (res) {
-                console.log(res, 'res')
-                spstatus_json.apply_id = res.id;
-                W.$ajax('mysql_api/create', {
-                    table: 'ga_spstatus',
-                    json_p: spstatus_json,
-                }, function (spst) {
-                    if (vehicleId) {
-                        wistorm_api._update('vehicle', { objectId: vehicleId }, { status: 1 }, W.getCookie('auth_code'), true, function (veh) {
-                            weui.alert('提交成功', function () {
-                                if (_user.employee.role == 13) {
-                                    sendmessage(res.id, apend_data[0].userId, form_option.nam, '用车通过', 1, function () {
-                                        top.location = '/usecar_detail?applyid=' + res.id + '&my=true'
-                                    })
-                                } else {
-                                    sendmessage(res.id, apend_data[0].userId, form_option.nam, '', 1, function () {
-                                        top.location = '/usecar_detail?applyid=' + res.id + '&my=true'
-                                    })
-                                }
-                            });
-                        });
-                    } else {
-                        weui.alert('提交成功', function () {
-                            if (_user.employee.role == 13) {
-                                sendmessage(res.id, apend_data[0].userId, form_option.nam, '用车通过', 1, function () {
-                                    top.location = '/usecar_detail?applyid=' + res.id + '&my=true'
+                            var i = 0;
+                            select_arr.forEach(ele => {
+                                sendmessage(res.id, ele, form_option.name, '用车', 2, '', function () {
+                                    i++;
+                                    if (i == select_arr.length) {
+                                        applyHide()
+                                    }
                                 })
-                            } else {
-                                sendmessage(res.id, apend_data[0].userId, form_option.nam, '', 1, function () {
-                                    top.location = '/usecar_detail?applyid=' + res.id + '&my=true'
-                                })
-                            }
-                        });
-                    }
-                })
-
-            })
-        });
-        function sendmessage(id, userid, name, ti, type, callback) {
-            var titles = ti || '用车申请'
-            var str = 'http://jct.chease.cn' + '/my_list?applyid=' + id;
-            if (type == 1) { //提交
-                str += '&my=true'
-            } else if (type == 2) { //审核
-                str += '&auditing=true'
-            }
-            str += '&userid=' + userid
-            var _desc = name + '维修申请'
-            var _op_data = { touser: userid, title: titles, desc: _desc, url: str, remark: "查看详情" };
-            $.ajax({
-                url: 'http://h5.bibibaba.cn/send_qywx.php',
-                data: _op_data,
-                dataType: 'jsonp',
-                crossDomain: true,
-                success: function (re) {
-                    callback()
-                },
-                error: function (err) {
-                    // console.log(err)
-                    callback()
-
+                            })
+                        }
+                    });
                 }
             })
-        }
+        })
+    });
+
+    function applyHide() {
+        $('#pc_apply', window.parent.document).toggle('slow', function () {
+            $('#pc_apply', window.parent.document).empty()
+        })
     }
+    function sendmessage(id, userid, username, title, type, tel, callback) {
+        var titles = title || '用车申请'
+        var str = 'http://jct.chease.cn' + '/my_list?applyid=' + id;
+        if (type == 1) { //提交
+            str += '&my=true'
+        } else if (type == 2) { //审核
+            str += '&auditing=true'
+        } else if (type == 3) { //车队
+            str += '&vehiclesend=true'
+        }
+        str += '&userid=' + userid
+        var _desc = username + '的' + titles
+        if (tel) {
+            _desc += '\n驾驶员' + tel
+        }
+        var _op_data = { touser: userid, title: titles, desc: _desc, url: str, remark: "查看详情" };
+        $.ajax({
+            url: 'http://h5.bibibaba.cn/send_qywx.php',
+            data: _op_data,
+            dataType: 'jsonp',
+            crossDomain: true,
+            success: function (re) {
+                callback()
+            },
+            error: function (err) {
+                // console.log(err)
+                callback()
 
-
-
-
-
-    // beta()
-    // test()
-
-    /***************************分隔符**************************************************************************************************************** */
-    // function test() {
-    //     var all_depart;
-    //     var form_option = {};
-    //     var _user = JSON.parse(localStorage.getItem('user'));
-    //     var is_kq = null;
-    //     var _val = $('input[name="order"]:checked').val();
-    //     console.log(_user)
-    //     if (_user.user) {
-    //         form_option.uid = _user.user.id;
-    //         form_option.role = _user.user.role;
-    //         if (_user.user.role == "科所队领导") {
-    //             get_carData(_user.depart.id, 1)
-    //             $('#borrow').parent().hide();
-    //             $('#night').hide();
-    //             $('#auditer').show();
-    //             $('#car_driver').show();
-    //         } else if (_user.user.role == '局领导') {
-    //             $('#borrow').parent().hide();
-    //             $('#night').hide();
-    //             $('#auditer').hide();
-    //             form_option.driver = 3
-    //         } else {
-    //             $('#borrow').parent().show();
-    //             $('#night').show();
-    //             $('#auditer').show();
-    //         }
-    //     }
-
-
-    //     form_option.night = _val;
-    //     _user.depart ? form_option.depart = _user.depart.id : null;
-
-    //     function getJson(url, callback, option, type) {
-    //         var types = type ? type : 'get';
-    //         var option = Object.assign({}, option ? option : {})
-    //         $.ajax({
-    //             url: url,
-    //             dataType: 'json',
-    //             data: option,
-    //             timeout: 10000,
-    //             type: types,
-    //             success: callback,
-    //             error: function (err) { },
-    //         })
-    //     }
-
-    //     getJson('./get_depart', all_depart)
-    //     getJson('./address', address)
-
-    //     function get_carData(depart, is_kl) {
-    //         getJson('./get_car', get_car, { depart: depart })
-    //         function get_car(res) {
-    //             console.log(res, 'car')
-    //             car_data = [];
-    //             let user_car = [];
-    //             res.forEach((ele, index) => {
-    //                 var op = {};
-    //                 ele.name ? op.label = ele.cname + '(' + ele.name + ele.mobile + ')' : op.label = ele.cname;
-    //                 op.value = ele.cid;
-    //                 car_data.push(op);
-    //                 !ele.name ? user_car.push(ele) : null
-    //             })
-    //             is_kl ? !user_car.length ? weui.alert('本部门没有可使用车辆,由车队派车') : null : null;
-    //             is_kl ? !user_car.length ? form_option.driver = 3 : null : null;
-    //             is_kl ? !user_car.length ? $('#car_driver').hide() : null : null;
-    //         }
-    //     }
-
-    //     $('#select_car').on('click', function () {
-    //         car_data.length ?
-    //             weui.picker(car_data, {
-    //                 onChange: function (result) {
-    //                     console.log(result);
-    //                 },
-    //                 onConfirm: function (result) {
-    //                     // console.log(result);
-    //                     form_option.car_num = result[0].label;
-    //                     $('#select_car .weui-cell__ft').text(result[0].label);
-    //                     $('#select_car .weui-cell__ft').css({ color: '#000' });
-    //                 },
-    //                 id: 'select_car'
-    //             })
-    //             :
-    //             weui.alert('没有车辆选择')
-    //             ;
-    //     });
-
-    //     // 本部门
-    //     function all_depart(res) {
-    //         console.log(res, 'depart')
-    //         all_depart = res;
-    //         var depart_data = [];
-    //         res.forEach((ele, index) => {
-    //             var op = {};
-    //             op.label = ele.name;
-    //             op.value = ele.id;
-    //             depart_data.push(op);
-    //         });
-    //     }
-
-
-    //     $('#borrow').on('click', function () {
-    //         weui.picker([
-    //             {
-    //                 label: '本单位车辆',
-    //                 value: '1'
-    //             }, {
-    //                 label: '向其他单位借车',
-    //                 value: '2'
-    //             }, {
-    //                 label: '向车队申请派车',
-    //                 value: '3'
-    //             }
-    //         ], {
-    //                 defaultValue: ['1'],
-    //                 onChange: function (result) {
-    //                     // console.log(result);
-    //                 },
-    //                 onConfirm: function (result) {
-    //                     // console.log(result);
-    //                     // form_option.borrow = result[0];
-    //                     var _v = result[0].value;
-    //                     form_option.driver = _v;
-    //                     $("#driver").val("")
-    //                     delete_depart();
-    //                     delete_car();
-    //                     if (_v == 3) {
-    //                         $('#car_driver').hide();
-    //                         $('#borrow_depart1').hide();
-    //                     } else {
-    //                         _v == 1 ? $('#car_driver').show() : $('#car_driver').hide();
-    //                         _v == 2 ? $('#borrow_depart1').show() : $('#borrow_depart1').hide();
-    //                         _v == 1 ? get_carData(_user.depart.id) : null;
-
-    //                     }
-    //                     $('#borrow .weui-cell__ft').text(result[0].label);
-    //                     $('#borrow .weui-cell__ft').css({ color: '#000' });
-    //                     _v == 2 ? b_depart() : null;
-    //                 },
-    //                 id: 'borrow'
-    //             });
-    //     });
-
-
-    //     function delete_car() {
-    //         delete form_option.car_num;
-    //         $('#select_car .weui-cell__ft').text('请选择');
-    //         $('#select_car .weui-cell__ft').css({ color: '#ccc' });
-    //     }
-
-    //     function delete_depart() {
-    //         // delete form_option.car_num
-    //         $('#borrow_depart .weui-cell__ft').text('请选择');
-    //         $('#borrow_depart .weui-cell__ft').css({ color: '#ccc' });
-    //     }
-
-
-    //     //借车单位
-    //     function b_depart() {
-    //         $('#borrow_depart').on('click', function () {
-    //             let depart_data = [];
-    //             let _index = null;
-    //             all_depart.forEach((ele, index) => {
-    //                 var op = {};
-    //                 if (ele.id != 1 && ele.id != form_option.depart) {
-    //                     op.label = ele.name;
-    //                     op.value = ele.id;
-    //                     depart_data.push(op)
-    //                 }
-    //             })
-    //             _index = depart_data[0].value
-    //             weui.picker(depart_data, {
-    //                 defaultValue: [_index],
-    //                 onChange: function (result) {
-
-    //                 },
-    //                 onConfirm: function (result) {
-    //                     // form_option.depart = result[0].value;
-    //                     delete_car();
-    //                     get_carData(result[0].value);
-    //                     $('#car_driver').show()
-    //                     $('#borrow_depart .weui-cell__ft').text(result[0].label);
-    //                     $('#borrow_depart .weui-cell__ft').css({ color: '#000' });
-    //                     console.log(result, form_option)
-    //                 },
-    //                 id: 'borrow_depart'
-    //             });
-    //         });
-    //     }
-
-    //     //地址
-    //     function address(res) {
-    //         console.log(res, 'res')
-    //         let addr_data = [];
-    //         let provi = [];
-    //         let city = [];
-    //         let addr = [];
-
-    //         res.forEach((ele, index) => {
-    //             let op = {}
-    //             if (ele.level == 1) {
-    //                 op.label = ele.areaName;
-    //                 op.value = ele.id;
-    //                 provi.push(op);
-    //                 addr_data.push(op);
-    //             } else if (ele.level == 2) {
-    //                 op.label = ele.areaName;
-    //                 op.value = ele.id;
-    //                 op.p = ele.parentId
-    //                 city.push(op);
-    //             } else {
-    //                 op.label = ele.areaName;
-    //                 op.value = ele.id;
-    //                 op.p = ele.parentId;
-    //                 addr.push(op);
-    //             }
-    //         })
-
-    //         city.forEach((ele, index) => {
-    //             ele.children = [];
-    //             addr.forEach((e, i) => {
-    //                 if (ele.value == e.p) {
-    //                     delete e.p;
-    //                     ele.children.push(e);
-    //                 }
-
-    //             })
-    //         })
-    //         provi.forEach((ele, index) => {
-    //             ele.children = [];
-    //             city.forEach((e, i) => {
-    //                 if (ele.value == e.p) {
-    //                     delete e.p;
-    //                     ele.children.push(e);
-    //                 }
-    //             })
-    //         })
-    //         console.log(provi, city, addr)
-    //         // console.log(addr_data,'addr')
-    //         $('#address').on('click', function () {
-    //             weui.picker(provi, {
-    //                 depth: 3,
-    //                 defaultValue: [11, 177, 2164],
-    //                 onChange: function onChange(result) {
-    //                     console.log(result);
-    //                 },
-    //                 onConfirm: function onConfirm(result) {
-    //                     // console.log(result);
-    //                     result[1].label == '温州市' ? is_kq = false : is_kq = true;
-    //                     getAudit()
-    //                     var text = result.reduce(function (pre, current) {
-    //                         return pre.label ? pre.label + current.label : pre + current.label
-    //                     })
-    //                     form_option.province = text;
-    //                     // console.log(text)
-    //                     $('#address .weui-cell__ft').text(text);
-    //                     $('#address .weui-cell__ft').css({ color: '#000' });
-    //                     console.log(is_kq)
-
-    //                 },
-    //                 id: 'address'
-    //             });
-    //         });
-
-    //     }
-
-    //     function getAuditer() {
-
-
-    //     }
-
-
-    //     // localStorage.setItem('user', JSON.stringify({ df: 1 }))
-    //     $('#audit_user').on('click', function () {
-    //         $('#container').hide();
-    //         $('#audit_list').show();
-    //         var state = { 'page_id': 1, 'user_id': 5 };
-    //         var title = '选择审核人';
-    //         var url = 'book';
-    //         history.pushState(state, title, url);
-    //         window.addEventListener('popstate', function (e) {
-    //             // console.log(e);
-    //             $('#container').show();
-    //             $('#audit_list').hide();
-    //         });
-    //     })
-
-
-
-
-
-    //     // var $submit_unsuccess = $('#submit_unsuccess');
-    //     // $('#toastBtn').on('click', function () {
-    //     //     if ($submit_unsuccess.css('display') != 'none') return;
-    //     //     $submit_unsuccess.fadeIn(100);
-    //     //     setTimeout(function () {
-    //     //         $submit_unsuccess.fadeOut(100);
-    //     //     }, 3000);
-    //     // });
-    //     // console.log(1)
-
-
-
-    //     var use_reason = ['执法办案', '社会面管理', '重大勤务', '督察检查', '指挥通信', '现场勘查', '押解', '勤务保障', '其他执法执勤']
-    //     var op_arr = [];
-    //     for (var i = 0; i < use_reason.length; i++) {
-    //         var op_i = {};
-    //         op_i.label = use_reason[i];
-    //         op_i.value = i + 1;
-    //         op_arr.push(op_i);
-    //     }
-    //     console.log(op_arr)
-    //     $('#reason').on('click', function () {
-    //         weui.picker(op_arr, {
-    //             defaultValue: ['1'],
-    //             onChange: function (result) {
-    //                 console.log(result);
-    //             },
-    //             onConfirm: function (result) {
-    //                 // console.log(result);
-    //                 form_option.days = result[0].label;
-    //                 var text = result[0].label;
-    //                 $('#reason .weui-cell__ft').text(text);
-    //                 $('#reason .weui-cell__ft').css({ color: '#000' })
-    //             },
-    //             id: 'reason'
-    //         });
-    //     });
-
-    //     $('#user').on('change', function (e) {
-    //         // console.log(e.target.value)
-    //         form_option.name = e.target.value;
-    //     })
-    //     $('#peer').on('change', function (e) {
-    //         form_option.peer = e.target.value;
-    //     })
-    //     $('#driver').on('change', function (e) {
-    //         form_option.driver = e.target.value;
-    //     })
-    //     $('#deta_addr').on('change', function (e) {
-    //         form_option.address = e.target.value;
-    //     })
-
-    //     // console.log(_val)
-    //     $('input[name="order"]').on('click', function (e) {
-    //         form_option.night = e.target.value;
-    //         getAudit()
-    //         console.log(form_option);
-    //     });
-
-
-
-    //     function getAudit() {
-
-    //         let op = {};
-    //         op.depart = _user.depart.id;
-    //         if (_user.user) {
-    //             if (_user.user.role == "科所队领导") {
-    //                 getJson('/getaudit', showaudit, op);
-    //             } else if (_user.user.role == '局领导') {
-
-    //             } else {
-    //                 if (form_option.night == 1 || is_kq) {
-    //                     op.jwdepart = 10;
-    //                     op.judepart = 1;
-    //                 }
-    //                 getJson('/getaudit', showaudit, op);
-    //             }
-    //         }
-    //     }
-    //     function show_auditer(data) {
-    //         $('#add_auditer').empty();
-    //         data.forEach((ele, index) => {
-    //             if (ele) {
-    //                 let str = 'show_i' + index
-    //                 let tr_content = `<div class="weui-cell__hd weui-flex" style="position: relative;" >
-    //                     <img src="./js/merge/img/1.png" class="" style="height:50px;width: 50px;display: block">
-    //                     <span class="" style="position: absolute;top:-12px;right: 17px;" id="` + str + `">
-    //                     <i class="weui-icon-cancel icon-delete"></i>
-    //                     </span>
-    //                     <span class="l_h_40 elli">...</span>
-    //                     <span class="addr_book">` + ele.name + `</span>
-    //                     </div>`
-    //                 $('#add_auditer').append(tr_content);
-    //                 let ff = '#' + str
-    //                 $(ff).on('click', function (res) {
-    //                     // select_auditer(ele)
-    //                     // console.log(index)
-    //                     apend_data[index] = null;
-    //                     show_auditer(apend_data);
-    //                 })
-    //             }
-
-    //         })
-    //     }
-    //     let apend_data = [];
-    //     function showaudit(res) {
-    //         console.log(res, 'res')
-    //         let auditer = res.filter(ele => { return ele.role == '科所队领导' || ele.role == '局领导' || ele.role == '警务保障室领导' })
-    //         console.log(auditer)
-    //         // let k_l = res.filter(ele => { return ele.role == '科所队领导' })
-    //         // let j_l = res.filter(ele => { return ele.role == '警务保障室领导' });
-    //         // let ju_l = res.filter(ele => { return ele.role == '局领导' });
-    //         var k_l = [], j_l = [], ju_l = [];
-    //         if (form_option.night > 0 || is_kq) {
-    //             k_l = res.filter(ele => { return ele.role == '科所队领导' })
-    //             j_l = res.filter(ele => { return ele.role == '警务保障室领导' });
-    //             ju_l = res.filter(ele => { return ele.role == '局领导' });
-    //         } else {
-    //             k_l = res.filter(ele => { return ele.role == '科所队领导' })
-    //         }
-    //         apend_data = [k_l[0], j_l[0], ju_l[0]];
-    //         if (_user.user.role == '科所队领导') {
-    //             apend_data = [k_l[0], null, null]
-    //         }
-    //         // $('#add_auditer').empty();
-    //         show_auditer(apend_data)
-
-    //         $('#audit_list').empty();
-    //         if (ju_l.length) {
-    //             ju_l.forEach((ele, index) => {
-    //                 let str = 'ju_l' + index
-    //                 let tr_content = `<div class="weui-cell weui-cell_access" id="` + str + `">
-    //                 <div class="weui-cell__hd" style="position: relative;margin-right: 10px;">
-    //                     <img src="./js/merge/img/1.png" style="width: 50px;display: block">
-    //                 </div>
-    //                 <div class="weui-cell__bd">
-    //                     <p>`+ ele.name + `</p>
-    //                     <p style="font-size: 13px;color: #888888;">`+ ele.role + `</p>
-    //                 </div>
-    //             </div>`
-    //                 $('#audit_list').append(tr_content);
-    //                 let ff = '#' + str
-    //                 $(ff).on('click', function (res) {
-    //                     select_auditer(ele)
-    //                 })
-    //             })
-    //         }
-    //         if (j_l.length) {
-    //             j_l.forEach((ele, index) => {
-    //                 let str = 'j_l' + index
-    //                 let tr_content = `<div class="weui-cell weui-cell_access" id="` + str + `">
-    //                     <div class="weui-cell__hd" style="position: relative;margin-right: 10px;">
-    //                         <img src="./js/merge/img/1.png" style="width: 50px;display: block">
-    //                     </div>
-    //                     <div class="weui-cell__bd">
-    //                         <p>`+ ele.name + `</p>
-    //                         <p style="font-size: 13px;color: #888888;">`+ ele.role + `</p>
-    //                     </div>
-    //                 </div>`
-    //                 $('#audit_list').append(tr_content);
-    //                 let ff = '#' + str
-    //                 $(ff).on('click', function (res) {
-    //                     select_auditer(ele)
-    //                 })
-    //             })
-    //         }
-    //         if (k_l.length) {
-    //             k_l.forEach((ele, index) => {
-    //                 let str = 'k_l' + index
-    //                 let tr_content = `<div class="weui-cell weui-cell_access" id="` + str + `">
-    //                 <div class="weui-cell__hd" style="position: relative;margin-right: 10px;">
-    //                     <img src="./js/merge/img/1.png" style="width: 50px;display: block">
-    //                 </div>
-    //                 <div class="weui-cell__bd">
-    //                     <p>`+ ele.name + `</p>
-    //                     <p style="font-size: 13px;color: #888888;">`+ ele.role + `</p>
-    //                 </div>
-    //             </div>`
-
-    //                 $('#audit_list').append(tr_content);
-    //                 let ff = '#' + str
-    //                 $(ff).on('click', function (res) {
-    //                     // console.log(ele, index, 'ddd')
-    //                     select_auditer(ele)
-    //                 })
-    //             })
-
-    //         }
-    //     }
-
-    //     function select_auditer(data) {
-    //         if (data.role == '局领导') {
-    //             apend_data[2] = data
-    //         } else if (data.role == '警务保障室领导') {
-    //             apend_data[1] = data
-    //         } else {
-    //             apend_data[0] = data;
-    //         }
-    //         history.back();
-    //         show_auditer(apend_data);
-    //     }
-
-
-
-
-
-    //     // var $submit_success = $('#submit_success');
-    //     $('#toastBtn').on('click', function () {
-    //         // console.log(form_option)
-    //         let data = [];
-    //         let str = [];
-    //         // form_option.auditer = apend_data;
-    //         form_option.id = 0;
-    //         form_option.cre_tm = ~~(new Date().getTime() / 1000);
-    //         // console.log(form_option);
-
-    //         // for (var o in form_option) {
-    //         //     // str += o + ','
-    //         //     str.push(o)
-    //         //     data.push(form_option[o])
-    //         // }
-    //         if (!form_option.name) {
-    //             weui.alert('请输入使用人');
-    //             return;
-    //         }
-    //         if (!form_option.province) {
-    //             weui.alert('请选择地址');
-    //             return;
-    //         }
-    //         if (!form_option.days) {
-    //             weui.alert('请选择事由');
-    //             return;
-    //         }
-    //         if (_user.user) {
-    //             if (_user.user.role == "科所队领导") {
-    //                 if (!apend_data[0]) {
-    //                     weui.alert('请选择审核人')
-    //                 } else {
-    //                     form_option.status = 1;
-    //                     form_option.estatus = 1;
-    //                 }
-    //             } else if (_user.user.role == '局领导') {
-
-    //             } else {
-    //                 if (!form_option.driver) {
-    //                     weui.alert('请选择用车')
-    //                 } else {
-
-    //                     if (!form_option.car_num && form_option.driver != 3) {
-    //                         weui.alert('请选择车辆');
-    //                         return;
-    //                     }
-    //                 }
-    //                 if (form_option.driver == 1 || form_option.driver == 2) {
-    //                     if (!form_option.car_num) {
-    //                         weui.alert('请选择车辆');
-    //                         return;
-    //                     }
-    //                     weui.alert('请输入驾驶人');
-    //                     return;
-    //                 } else {
-    //                     // if (form_option.driver.length > 1) {
-    //                     //     weui.alert('请输入驾驶人');
-    //                     //     return;
-    //                     // }
-    //                 }
-
-    //             }
-    //             // let 
-    //             if (form_option.night > 0 || is_kq) {
-    //                 let is_ok = false
-    //                 apend_data.forEach((ele, index) => {
-    //                     if (!ele && index == 0) {
-    //                         weui.alert('请选择科所队领导');
-    //                         is_ok = true;
-    //                         return;
-    //                     } else if (!ele && index == 1) {
-    //                         weui.alert('请选择警务保障室领导');
-    //                         is_ok = true;
-    //                         return;
-    //                     } else if (!ele && index == 2) {
-    //                         weui.alert('请选择局领导');
-    //                         is_ok = true;
-    //                         return;
-    //                     } else {
-    //                         form_option.status = 3;
-    //                         form_option.estatus = 3;
-    //                     }
-    //                 })
-    //                 if (is_ok) {
-    //                     return;
-    //                 }
-    //                 // if (apend_data.length != 3) {
-    //                 //     weui.alert('该申请为三级审批，请选择科所队领导、警务保障室领导和局领导')
-    //                 // } else {
-
-    //                 // }
-    //             } else {
-    //                 if (_user.user.role != '局领导') {
-    //                     if (!apend_data[0]) {
-    //                         weui.alert('请选择审核人');
-    //                         return;
-
-    //                     } else {
-    //                         form_option.status = 1;
-    //                         form_option.estatus = 1;
-    //                     }
-    //                 }
-
-    //             }
-    //         }
-
-
-
-    //         let push_op = {
-    //             form_option: form_option,
-    //             auditer: apend_data
-    //         }
-
-    //         console.log(str)
-
-    //         getJson('/add_apply', function (res) {
-    //             // console.log(res)
-    //             weui.alert('提交成功', function () {
-    //                 sendmessage(res, apend_data[0].userid, _user.user.name)
-
-    //             });
-    //         }, push_op)
-
-
-
-    //     });
-
-    //     function sendmessage(id, userid, name, ti, alt) {
-    //         var titles = ti || '用车申请'
-    //         let str = 'http://jct.chease.cn' + '/my_list?applyid=' + id;
-    //         let _desc = name + '的用车'
-    //         let _op_data = { touser: userid, title: titles, desc: _desc, url: str, remark: "查看详情" };
-    //         $.ajax({
-    //             url: 'http://h5.bibibaba.cn/send_qywx.php',
-    //             data: _op_data,
-    //             dataType: 'jsonp',
-    //             crossDomain: true,
-    //             success: function (re) {
-    //                 // if (alt) {
-    //                 //     weui.alert(alt, function () {
-    //                 //         history.go(0);
-    //                 //     })
-    //                 // } else {
-    //                 //     history.go(0);
-    //                 // }
-    //                 top.location = '/my_list?applyid=' + id + '&my=true'
-    //             },
-    //             error: function (err) {
-    //                 // console.log(err)
-    //                 // if (alt) {
-    //                 //     weui.alert(alt, function () {
-    //                 //         history.go(0);
-    //                 //     })
-    //                 // } else {
-    //                 //     history.go(0);
-    //                 // }
-    //                 top.location = '/my_list?applyid=' + id + '&my=true'
-    //             }
-    //         })
-    //     }
-    //     // console.log(window.parent.location, 'parent')
-    // }
-    //     });
-    // }
-
-
-
-
-    /***********************************************华丽的分割线****************************************************************** */
-    function test() {
-        var all_depart;
-        var form_option = {};
-        var _user = JSON.parse(localStorage.getItem('user'));
-        var is_kq = null;
-        var _val = $('input[name="order"]:checked').val();
-
-        console.log(_user)
-        if (_user.user) {
-            form_option.uid = _user.user.id;
-            form_option.role = _user.user.role;
-            if (_user.user.role == "科所队领导") {
-                get_carData(_user.depart.id, 1)
-                $('#borrow').parent().hide();
-                $('#night').hide();
-                $('#auditer').show();
-                $('#car_driver').show();
-            } else if (_user.user.role == '局领导') {
-                $('#borrow').parent().hide();
-                $('#night').hide();
-                $('#auditer').hide();
-                form_option.driver = 3
-            } else {
-                $('#borrow').parent().show();
-                $('#night').show();
-                $('#auditer').show();
             }
-        }
-
-
-
-
-
-        form_option.night = _val;
-        _user.depart ? form_option.depart = _user.depart.id : null;
-
-        function getJson(url, callback, option, type) {
-            var types = type ? type : 'get';
-            var option = Object.assign({}, option ? option : {})
-            $.ajax({
-                url: url,
-                dataType: 'json',
-                data: option,
-                timeout: 10000,
-                type: types,
-                success: callback,
-                error: function (err) { },
-            })
-        }
-
-        getJson('./get_depart', all_depart)
-        getJson('./address', address)
-        var car_data = [];
-        function get_carData(depart, is_kl) {
-            getJson('./get_car', get_car, { depart: depart })
-            // var dealer_type = $.cookie('dealer_type');
-            // var dealer_id = $.cookie('dealer_id');
-            // // var tree_path = $.cookie('tree_path');
-            // var auth_code = $.cookie('auth_code');
-            // var query_json;
-            // query_json = {
-            //     uid: dealer_id,
-            //     departId: 58
-            // }
-            // wistorm_api._list('vehicle', query_json, '', 'name', 'name', 0, 0, 1, -1, auth_code, true, function (json) { console.log(json,'d') })
-            function get_car(res) {
-                console.log(res, 'car')
-                car_data = [];
-                var user_car = [];
-                res.forEach((ele, index) => {
-                    var op = {};
-                    ele.name ? op.label = ele.cname + '(' + ele.name + ele.mobile + ')' : op.label = ele.cname;
-                    op.value = ele.cid;
-                    car_data.push(op);
-                    !ele.name ? user_car.push(ele) : null
-                })
-                is_kl ? !user_car.length ? weui.alert('本部门没有可使用车辆,由车队派车') : null : null;
-                is_kl ? !user_car.length ? form_option.driver = 3 : null : null;
-                is_kl ? !user_car.length ? $('#car_driver').hide() : null : null;
-            }
-        }
-
-        $('#select_car').on('click', function () {
-            car_data.length ?
-                weui.picker(car_data, {
-                    onChange: function (result) {
-                        console.log(result);
-                    },
-                    onConfirm: function (result) {
-                        // console.log(result);
-                        form_option.car_num = result[0].label;
-                        $('#select_car .weui-cell__ft').text(result[0].label);
-                        $('#select_car .weui-cell__ft').css({ color: '#000' });
-                    },
-                    id: 'select_car'
-                })
-                :
-                weui.alert('没有车辆选择')
-                ;
-        });
-
-        // 本部门
-        function all_depart(res) {
-            // console.log(res)
-            all_depart = res;
-            var depart_data = [];
-            res.forEach((ele, index) => {
-                var op = {};
-                op.label = ele.name;
-                op.value = ele.id;
-                depart_data.push(op);
-            });
-        }
-
-
-        $('#borrow').on('click', function () {
-            weui.picker([
-                {
-                    label: '本单位车辆',
-                    value: '1'
-                }, {
-                    label: '向其他单位借车',
-                    value: '2'
-                }, {
-                    label: '向车队申请派车',
-                    value: '3'
-                }
-            ], {
-                    defaultValue: ['1'],
-                    onChange: function (result) {
-                        // console.log(result);
-                    },
-                    onConfirm: function (result) {
-                        // console.log(result);
-                        // form_option.borrow = result[0];
-                        var _v = result[0].value;
-                        form_option.driver = _v;
-                        $("#driver").val("")
-                        delete_depart();
-                        delete_car();
-                        if (_v == 3) {
-                            $('#car_driver').hide();
-                            $('#borrow_depart1').hide();
-                        } else {
-                            _v == 1 ? $('#car_driver').show() : $('#car_driver').hide();
-                            _v == 2 ? $('#borrow_depart1').show() : $('#borrow_depart1').hide();
-                            _v == 1 ? get_carData(_user.depart.id) : null;
-
-                        }
-                        $('#borrow .weui-cell__ft').text(result[0].label);
-                        $('#borrow .weui-cell__ft').css({ color: '#000' });
-                        _v == 2 ? b_depart() : null;
-                    },
-                    id: 'borrow'
-                });
-        });
-
-
-        function delete_car() {
-            delete form_option.car_num;
-            $('#select_car .weui-cell__ft').text('请选择');
-            $('#select_car .weui-cell__ft').css({ color: '#ccc' });
-        }
-
-        function delete_depart() {
-            // delete form_option.car_num
-            $('#borrow_depart .weui-cell__ft').text('请选择');
-            $('#borrow_depart .weui-cell__ft').css({ color: '#ccc' });
-        }
-
-
-        //借车单位
-        function b_depart() {
-            $('#borrow_depart').on('click', function () {
-                var depart_data = [];
-                var _index = null;
-                all_depart.forEach((ele, index) => {
-                    var op = {};
-                    if (ele.id != 1 && ele.id != form_option.depart) {
-                        op.label = ele.name;
-                        op.value = ele.id;
-                        depart_data.push(op)
-                    }
-                })
-                _index = depart_data[0].value
-                weui.picker(depart_data, {
-                    defaultValue: [_index],
-                    onChange: function (result) {
-
-                    },
-                    onConfirm: function (result) {
-                        // form_option.depart = result[0].value;
-                        delete_car();
-                        get_carData(result[0].value);
-                        $('#car_driver').show()
-                        $('#borrow_depart .weui-cell__ft').text(result[0].label);
-                        $('#borrow_depart .weui-cell__ft').css({ color: '#000' });
-                        console.log(result, form_option)
-                    },
-                    id: 'borrow_depart'
-                });
-            });
-        }
-
-        //地址
-        function address(res) {
-            console.log(res, 'res')
-            var addr_data = [];
-            var provi = [];
-            var city = [];
-            var addr = [];
-
-            res.forEach((ele, index) => {
-                var op = {}
-                if (ele.level == 1) {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    provi.push(op);
-                    addr_data.push(op);
-                } else if (ele.level == 2) {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    op.p = ele.parentId
-                    city.push(op);
-                } else {
-                    op.label = ele.areaName;
-                    op.value = ele.id;
-                    op.p = ele.parentId;
-                    addr.push(op);
-                }
-            })
-
-            city.forEach((ele, index) => {
-                ele.children = [];
-                addr.forEach((e, i) => {
-                    if (ele.value == e.p) {
-                        delete e.p;
-                        ele.children.push(e);
-                    }
-
-                })
-            })
-            provi.forEach((ele, index) => {
-                ele.children = [];
-                city.forEach((e, i) => {
-                    if (ele.value == e.p) {
-                        delete e.p;
-                        ele.children.push(e);
-                    }
-                })
-            })
-            console.log(provi, city, addr)
-            // console.log(addr_data,'addr')
-            $('#address').on('click', function () {
-                weui.picker(provi, {
-                    depth: 3,
-                    defaultValue: [11, 177, 2164],
-                    onChange: function onChange(result) {
-                        console.log(result);
-                    },
-                    onConfirm: function onConfirm(result) {
-                        // console.log(result);
-                        result[1].label == '温州市' ? is_kq = false : is_kq = true;
-                        getAudit()
-                        var text = result.reduce(function (pre, current) {
-                            return pre.label ? pre.label + current.label : pre + current.label
-                        })
-                        form_option.province = text;
-                        // console.log(text)
-                        $('#address .weui-cell__ft').text(text);
-                        $('#address .weui-cell__ft').css({ color: '#000' });
-                        console.log(is_kq)
-
-                    },
-                    id: 'address'
-                });
-            });
-
-        }
-
-        function getAuditer() {
-
-
-        }
-
-
-        // localStorage.setItem('user', JSON.stringify({ df: 1 }))
-        $('#audit_user').on('click', function () {
-            $('#container').hide();
-            $('#audit_list').show();
-            var state = { 'page_id': 1, 'user_id': 5 };
-            var title = '选择审核人';
-            var url = 'book';
-            history.pushState(state, title, url);
-            window.addEventListener('popstate', function (e) {
-                // console.log(e);
-                $('#container').show();
-                $('#audit_list').hide();
-            });
         })
-
-
-
-
-
-        // var $submit_unsuccess = $('#submit_unsuccess');
-        // $('#toastBtn').on('click', function () {
-        //     if ($submit_unsuccess.css('display') != 'none') return;
-        //     $submit_unsuccess.fadeIn(100);
-        //     setTimeout(function () {
-        //         $submit_unsuccess.fadeOut(100);
-        //     }, 3000);
-        // });
-        // console.log(1)
-
-
-
-        var use_reason = ['执法办案', '社会面管理', '重大勤务', '督察检查', '指挥通信', '现场勘查', '押解', '勤务保障', '其他执法执勤']
-        var op_arr = [];
-        for (var i = 0; i < use_reason.length; i++) {
-            var op_i = {};
-            op_i.label = use_reason[i];
-            op_i.value = i + 1;
-            op_arr.push(op_i);
-        }
-        console.log(op_arr)
-        $('#reason').on('click', function () {
-            weui.picker(op_arr, {
-                defaultValue: ['1'],
-                onChange: function (result) {
-                    console.log(result);
-                },
-                onConfirm: function (result) {
-                    // console.log(result);
-                    form_option.days = result[0].label;
-                    var text = result[0].label;
-                    $('#reason .weui-cell__ft').text(text);
-                    $('#reason .weui-cell__ft').css({ color: '#000' })
-                },
-                id: 'reason'
-            });
-        });
-
-        $('#user').on('change', function (e) {
-            // console.log(e.target.value)
-            form_option.name = e.target.value;
-        })
-        $('#peer').on('change', function (e) {
-            form_option.peer = e.target.value;
-        })
-        $('#driver').on('change', function (e) {
-            form_option.driver = e.target.value;
-        })
-        $('#deta_addr').on('change', function (e) {
-            form_option.address = e.target.value;
-        })
-
-        // console.log(_val)
-        $('input[name="order"]').on('click', function (e) {
-            form_option.night = e.target.value;
-            getAudit()
-            console.log(form_option);
-        });
-
-
-        var apend_data = [];
-        function getAudit() {
-            var op = {};
-            op.depart = _user.depart.id;
-            if (_user.user) {
-                if (_user.user.role == "科所队领导") {
-                    getJson('/getaudit', showaudit, op);
-                } else if (_user.user.role == '局领导') {
-
-                } else {
-                    if (form_option.night == 1 || is_kq) {
-                        op.jwdepart = 10;
-                        op.judepart = 1;
-                    }
-                    getJson('/getaudit', showaudit, op);
-                }
-            }
-        }
-        function show_auditer(data) {
-            $('#add_auditer').empty();
-            data.forEach((ele, index) => {
-                if (ele) {
-                    var str = 'show_i' + index
-                    var tr_content = `<div class="weui-cell__hd weui-flex" style="position: relative;" >
-                    <img src="./js/merge/img/1.png" class="" style="height:50px;width: 50px;display: block">
-                    <span class="" style="position: absolute;top:-12px;right: 17px;" id="` + str + `">
-                    <i class="weui-icon-cancel icon-delete"></i>
-                    </span>
-                    <span class="l_h_40 elli">...</span>
-                    <span class="addr_book">` + ele.name + `</span>
-                    </div>`
-                    $('#add_auditer').append(tr_content);
-                    var ff = '#' + str
-                    $(ff).on('click', function (res) {
-                        // select_auditer(ele)
-                        // console.log(index)
-                        apend_data[index] = null;
-                        show_auditer(apend_data);
-                    })
-                }
-
-            })
-        }
-
-        function showaudit(res) {
-            console.log(res, 'res')
-            var auditer = res.filter(ele => { return ele.role == '科所队领导' || ele.role == '局领导' || ele.role == '警务保障室领导' })
-            console.log(auditer);
-            var k_l = [], j_l = [], ju_l = [];
-            if (form_option.night > 0 || is_kq) {
-                k_l = res.filter(ele => { return ele.role == '科所队领导' })
-                j_l = res.filter(ele => { return ele.role == '警务保障室领导' });
-                ju_l = res.filter(ele => { return ele.role == '局领导' });
-            } else {
-                k_l = res.filter(ele => { return ele.role == '科所队领导' })
-            }
-            if (_user.user.role == '科所队领导') {
-                apend_data = [k_l[0], null, null]
-            }
-            // var k_l = res.filter(ele => { return ele.role == '科所队领导' })
-            // var j_l = res.filter(ele => { return ele.role == '警务保障室领导' });
-            // var ju_l = res.filter(ele => { return ele.role == '局领导' });
-            // apend_data = [k_l[0], j_l[0], ju_l[0]];
-            // $('#add_auditer').empty();
-            // if (form_option.night > 0 || is_kq) {
-            apend_data = [k_l[0], j_l[0], ju_l[0]];
-            // } else {
-            // apend_data = [k_l[0]]
-            // }
-            show_auditer(apend_data)
-
-            $('#audit_list').empty();
-            if (ju_l.length) {
-                ju_l.forEach((ele, index) => {
-                    var str = 'ju_l' + index
-                    var tr_content = `<div class="weui-cell weui-cell_access" id="` + str + `">
-                <div class="weui-cell__hd" style="position: relative;margin-right: 10px;">
-                    <img src="./js/merge/img/1.png" style="width: 50px;display: block">
-                </div>
-                <div class="weui-cell__bd">
-                    <p>`+ ele.name + `</p>
-                    <p style="font-size: 13px;color: #888888;">`+ ele.role + `</p>
-                </div>
-            </div>`
-                    $('#audit_list').append(tr_content);
-                    var ff = '#' + str
-                    $(ff).on('click', function (res) {
-                        select_auditer(ele)
-                    })
-                })
-            }
-            if (j_l.length) {
-                j_l.forEach((ele, index) => {
-                    var str = 'j_l' + index
-                    var tr_content = `<div class="weui-cell weui-cell_access" id="` + str + `">
-                    <div class="weui-cell__hd" style="position: relative;margin-right: 10px;">
-                        <img src="./js/merge/img/1.png" style="width: 50px;display: block">
-                    </div>
-                    <div class="weui-cell__bd">
-                        <p>`+ ele.name + `</p>
-                        <p style="font-size: 13px;color: #888888;">`+ ele.role + `</p>
-                    </div>
-                </div>`
-                    $('#audit_list').append(tr_content);
-                    var ff = '#' + str
-                    $(ff).on('click', function (res) {
-                        select_auditer(ele)
-                    })
-                })
-            }
-            if (k_l.length) {
-                k_l.forEach((ele, index) => {
-                    var str = 'k_l' + index
-                    var tr_content = `<div class="weui-cell weui-cell_access" id="` + str + `">
-                <div class="weui-cell__hd" style="position: relative;margin-right: 10px;">
-                    <img src="./js/merge/img/1.png" style="width: 50px;display: block">
-                </div>
-                <div class="weui-cell__bd">
-                    <p>`+ ele.name + `</p>
-                    <p style="font-size: 13px;color: #888888;">`+ ele.role + `</p>
-                </div>
-            </div>`
-
-                    $('#audit_list').append(tr_content);
-                    var ff = '#' + str
-                    $(ff).on('click', function (res) {
-                        // console.log(ele, index, 'ddd')
-                        select_auditer(ele)
-                    })
-                })
-
-            }
-        }
-
-        function select_auditer(data) {
-            if (data.role == '局领导') {
-                apend_data[2] = data
-            } else if (data.role == '警务保障室领导') {
-                apend_data[1] = data
-            } else {
-                apend_data[0] = data;
-            }
-            history.back();
-            show_auditer(apend_data);
-        }
-
-
-
-
-
-        // var $submit_success = $('#submit_success');
-        $('#toastBtn').on('click', function () {
-            // console.log(form_option)
-            var data = [];
-            var str = [];
-            // form_option.auditer = apend_data;
-            form_option.id = 0;
-            form_option.cre_tm = ~~(new Date().getTime() / 1000);
-            // console.log(form_option);
-
-            // for (var o in form_option) {
-            //     // str += o + ','
-            //     str.push(o)
-            //     data.push(form_option[o])
-            // }
-            if (!form_option.name) {
-                weui.alert('请输入使用人');
-                return;
-            }
-            if (!form_option.province) {
-                weui.alert('请选择地址');
-                return;
-            }
-            if (!form_option.days) {
-                weui.alert('请选择事由');
-                return;
-            }
-            if (_user.user) {
-                if (_user.user.role == "科所队领导") {
-                    if (!apend_data[0]) {
-                        weui.alert('请选择审核人')
-                    } else {
-                        form_option.status = 1;
-                        form_option.estatus = 1;
-                    }
-                } else if (_user.user.role == '局领导') {
-
-                } else {
-                    if (!form_option.driver) {
-                        weui.alert('请选择用车')
-                    } else {
-
-                        if (!form_option.car_num && form_option.driver != 3) {
-                            weui.alert('请选择车辆');
-                            return;
-                        }
-                    }
-                    if (form_option.driver == 1 || form_option.driver == 2) {
-                        if (!form_option.car_num) {
-                            weui.alert('请选择车辆');
-                            return;
-                        }
-                        weui.alert('请输入驾驶人');
-                        return;
-                    } else {
-                        // if (form_option.driver.length > 1) {
-                        //     weui.alert('请输入驾驶人');
-                        //     return;
-                        // }
-                    }
-
-                }
-                // var 
-                if (form_option.night > 0 || is_kq) {
-                    var is_ok = false
-                    apend_data.forEach((ele, index) => {
-                        if (!ele && index == 0) {
-                            weui.alert('请选择科所队领导');
-                            is_ok = true;
-                            return;
-                        } else if (!ele && index == 1) {
-                            weui.alert('请选择警务保障室领导');
-                            is_ok = true;
-                            return;
-                        } else if (!ele && index == 2) {
-                            weui.alert('请选择局领导');
-                            is_ok = true;
-                            return;
-                        } else {
-                            form_option.status = 3;
-                            form_option.estatus = 3;
-                        }
-                    })
-                    if (is_ok) {
-                        return;
-                    }
-                    // if (apend_data.length != 3) {
-                    //     weui.alert('该申请为三级审批，请选择科所队领导、警务保障室领导和局领导')
-                    // } else {
-
-                    // }
-                } else {
-                    if (_user.user.role != '局领导') {
-                        if (!apend_data[0]) {
-                            weui.alert('请选择审核人');
-                            return;
-
-                        } else {
-                            form_option.status = 1;
-                            form_option.estatus = 1;
-                        }
-                    }
-
-                }
-            }
-
-
-
-            var push_op = {
-                form_option: form_option,
-                auditer: apend_data
-            }
-
-            console.log(str)
-
-            getJson('/add_apply', function (res) {
-                console.log(res)
-                weui.alert('提交成功', function () {
-                    sendmessage(res, apend_data[0].userid, _user.user.name)
-                });
-            }, push_op)
-
-
-
-        });
-        // function sendmessage(id, userid, t) {
-        //     var titles = t || '用车申请'
-        //     str = 'http://jct.chease.cn' + '/my_list?applyid=' + id
-        //     var url = 'http://h5.bibibaba.cn/send_qywx.php?touser=' + userid
-        //         + '&toparty=&totag=&'
-        //         + 'title=' + titles + '&'
-        //         + 'desc=' + _user.user.name + '的用车&'
-        //         + 'url=' + str + '&remark=查看详情'
-        //     // if (res.spstatus[0]) {
-        //     W.ajax(url, {
-        //         dataType: 'json',
-        //         success: function (res) {
-        //             // console.log(res)
-        //             // weui.alert('已催办')
-        //             history.back()
-        //         }
-        //     })
-        //     // }
-        // }
-        function sendmessage(id, userid, name, ti, alt) {
-            var titles = ti || '用车申请'
-            var str = 'http://jct.chease.cn' + '/my_list?applyid=' + id;
-            var _desc = name + '的用车'
-            var _op_data = { touser: userid, title: titles, desc: _desc, url: str, remark: "查看详情" };
-            $.ajax({
-                url: 'http://h5.bibibaba.cn/send_qywx.php',
-                data: _op_data,
-                dataType: 'jsonp',
-                crossDomain: true,
-                success: function (re) {
-                    // if (alt) {
-                    //     weui.alert(alt, function () {
-                    //         history.go(0);
-                    //     })
-                    // } else {
-                    //     history.go(0);
-                    // }
-                    top.location = '/usecar_detail?applyid=' + id + '&my=true'
-                },
-                error: function (err) {
-                    // console.log(err)
-                    // if (alt) {
-                    //     weui.alert(alt, function () {
-                    //         history.go(0);
-                    //     })
-                    // } else {
-                    //     history.go(0);
-                    // }
-                    top.location = '/usecar_detail?applyid=' + id + '&my=true'
-                }
-            })
-        }
-        console.log(window.parent.location, 'parent')
     }
-
 
 
 });
